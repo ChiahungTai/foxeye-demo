@@ -1,0 +1,123 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style type="text/css">
+  </style>
+</head>
+
+<body>
+  <div id="container";overflow:hidden;width:2000px>
+    <div id="inner" style="overflow:hidden;width:2000px">
+        <div style="float:left;margin:10px;">
+            <img id="image1"></img>
+        </div>
+        <div style="float:left;margin:10px;">
+            <canvas id="canvas1"></canvas>
+        </div>
+        <div style="float:left;margin:10px;">
+            <canvas id="canvas2"></canvas>
+        </div>
+    </div>
+  </div>
+</body>
+
+<script>
+
+var image1 = document.getElementById("image1");
+var canvas1 = document.getElementById("canvas1");
+var canvas2 = document.getElementById("canvas2");
+var ctx1 = canvas1.getContext("2d");
+var ctx2 = canvas2.getContext("2d");
+
+function example1(bitmap) {
+  var format = bitmap.findOptimalFormat();      // ask for the current best format
+  var length = bitmap.mappedDataLength(format); // ask for the needed buffer length to store the data in a given format
+  var buffer = new ArrayBuffer(length);
+  var bufferView = new Uint8ClampedArray(buffer, 0, length);
+  var pixelLayout = bitmap.mapDataInto(format, buffer, 0, length);  // ask the ImageBitmap to fill data into the given buffer in a given format
+
+  // a simple processing..., implement the "invert" filter
+  var rOrder, gOrder, bOrder;
+  if (format == "BGRA32") {
+    rOrder = 2;
+    gOrder = 1;
+    bOrder = 0;
+  } else if (format == "RGBA32") {
+    rOrder = 0;
+    gOrder = 1;
+    bOrder = 2;
+  } else {
+    console.log("not going to deal with " + format + " now..., sorry...");
+    return;
+  }
+
+  var numPixels = bitmap.width * bitmap.height;
+  for (var i = 0; i < numPixels; ++i) {
+    var b = bufferView[4*i+bOrder];    // read B
+    var g = bufferView[4*i+gOrder];    // read G
+    var r = bufferView[4*i+rOrder];    // read R
+    bufferView[4*i+bOrder] = 255 - b;    // write the new B value back
+    bufferView[4*i+gOrder] = 255 - g;    // write the new G value back
+    bufferView[4*i+rOrder] = 255 - r;    // write the new R value back
+
+    // bufferView[4*i+3] = 255;    // A
+  }
+
+  // set the processed data back to the ImageBitmap
+  bitmap.setDataFrom(format, buffer, 0, length, bitmap.width, bitmap.height, pixelLayout.channels[0].stride);
+
+  // show result
+  ctx1.drawImage(bitmap, 0, 0);
+}
+
+function example2(bitmap) {
+  var format = bitmap.findOptimalFormat();      // ask for the current best format
+  format = "RGBA32";                            // no matter what the best format is, force it to be "RGBA32"
+
+  var length = bitmap.mappedDataLength(format);
+  var buffer = new ArrayBuffer(length);
+  var bufferView = new Uint8ClampedArray(buffer, 0, length);
+  var pixelLayout = bitmap.mapDataInto(format, buffer, 0, length);
+
+  // a simple processing..., implement the "invert" filter
+  var rOrder = 0;
+  var gOrder = 1;
+  var bOrder = 2;
+
+  var numPixels = bitmap.width * bitmap.height;
+  for (var i = 0; i < numPixels; ++i) {
+    var b = bufferView[4*i+bOrder];    // read B
+    var g = bufferView[4*i+gOrder];    // read G
+    var r = bufferView[4*i+rOrder];    // read R
+    bufferView[4*i+bOrder] = 255 - b;    // write the new B value back
+    bufferView[4*i+gOrder] = 255 - g;    // write the new G value back
+    bufferView[4*i+rOrder] = 255 - r;    // write the new R value back
+
+    // bufferView[4*i+3] = 255;    // A
+  }
+
+  // another way to show result, via an ImageData
+  var imageData = new ImageData(bufferView, bitmap.width, bitmap.height);
+  ctx2.putImageData(imageData, 0, 0);
+}
+
+image1.src = "./firefox.png";
+image1.onload = function() {
+  canvas1.width = image1.naturalWidth;
+  canvas1.height = image1.naturalHeight;
+  canvas2.width = image1.naturalWidth;
+  canvas2.height = image1.naturalHeight;
+
+  // create an ImageBitmap from the HTMLImageElemnt
+  var promise = createImageBitmap(image1);
+  promise.then(function(bitmap){
+    example1(bitmap);
+    example2(bitmap);
+  });
+};
+
+
+
+</script>
+</html>
