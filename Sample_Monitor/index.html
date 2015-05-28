@@ -1,0 +1,109 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Video Workers on MediaStreamTrack</title>
+</head>
+<body>
+<div id="container";style="overflow:hidden;width:2000px">
+    <div id="inner" style="overflow:hidden;width:2000px">
+        <div style="float:left;margin:10px;">
+            <input type="submit" id="playButton" class="buttonStyle" value="Play"></input>
+        </div>
+        <div style="float:left;margin:10px;">
+            <input type="submit" id="stopButton" class="buttonStyle" value="Stop"></input>
+        </div>
+    </div>
+    <div id="inner" style="overflow:hidden;width:2000px">
+        <div style="float:left;margin:10px;">
+            <video id="webcam"></video>
+        </div>
+        <div style="float:left;margin:10px;">
+            <canvas id="result"></canvas>
+        </div>
+    </div>
+</div>
+</body>
+
+<script type="text/javascript">
+var showWebCamVideo = true;
+var video = document.getElementById('webcam');
+var isCanvasInitialized = false;
+var canvasResult = document.getElementById('result');
+var ctxResult = canvasResult.getContext('2d');;
+var localMediaStream;
+var playButton = document.getElementById('playButton');
+var stopButton = document.getElementById('stopButton');
+var controlWorker;
+
+//Checking camera
+function hasGetUserMedia() {
+    return !!(navigator.getUserMedia ||
+              navigator.webkitGetUserMedia ||
+              navigator.mozGetUserMedia ||
+              navigator.msGetUserMedia);
+}
+
+if (hasGetUserMedia()) {
+    console.log("Camera OK");
+} else {
+    alert("Invalid!");
+}
+
+navigator.getUserMedia = navigator.getUserMedia ||
+                         navigator.webkitGetUserMedia ||
+                         navigator.mozGetUserMedia ||
+                         navigator.msGetUserMedia;
+
+playButton.onclick = function() {
+    navigator.getUserMedia({video: true, audio: false} , onSuccess, onFail);
+}
+
+stopButton.onclick = function() {
+    isContinuous = false;
+    video.pause();
+    localMediaStream.stop();
+}
+
+function onSuccess(stream) {
+    localMediaStream = stream;
+    initControlWorker();
+
+    if (showWebCamVideo) {
+        video.src = window.URL.createObjectURL(localMediaStream);
+        video.play();
+    }
+}
+
+function onFail(e) {
+    console.log('Cannot access WebCAM!', e);
+}
+
+function initControlWorker() {
+	controlWorker = new VideoWorker("control_worker.js");
+
+	if (!!controlWorker) {
+		var tracks = localMediaStream.getTracks();
+		controlWorker.postMessage({"type":"set_trackid", "id":tracks[0].id});
+    controlWorker.postMessage({"type":"init_process_worker"});
+    tracks[0].addWorkerMonitor(controlWorker, {});
+    // tracks[0].addWorkerProcessor(controlWorker, {});
+	}
+
+	controlWorker.onmessage = function(event) {
+		if(event.data.type == "display_arraybuffer") {
+      if (!isCanvasInitialized) {
+        canvasResult.width = event.data.imageWidth;
+        canvasResult.height = event.data.imageHeight;
+        isCanvasInitialized = true;
+      }
+
+			var bufferView = new Uint8ClampedArray(event.data.buffer, 0, event.data.bufferLength);
+			var imageData = new ImageData(bufferView, event.data.imageWidth, event.data.imageHeight);
+	    // show result
+  		ctxResult.putImageData(imageData, 0, 0);
+		}
+	};
+}
+</script>
+</html>
