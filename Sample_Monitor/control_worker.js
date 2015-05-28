@@ -23,11 +23,16 @@ onmessage = function(event) {
 	}
 }
 
+var frameNum = 0;
+
 onvideoprocess = function(event) {
+	frameNum++;
 	if (isProcessing) {
 		// drop this frame
+		console.log("drop frame[" + frameNum + "]")
 		return;
 	} else {
+		console.log("process frame[" + frameNum + "]")
 		isProcessing = true;
 		var bitmap = event.inputImageBitmap;
 		var bitmapFormat = bitmap.findOptimalFormat();;
