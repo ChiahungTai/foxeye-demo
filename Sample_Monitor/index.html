@@ -87,21 +87,17 @@ function initControlWorker() {
 		controlWorker.postMessage({"type":"set_trackid", "id":tracks[0].id});
     controlWorker.postMessage({"type":"init_process_worker"});
     tracks[0].addWorkerMonitor(controlWorker, {});
-    // tracks[0].addWorkerProcessor(controlWorker, {});
 	}
 
 	controlWorker.onmessage = function(event) {
 		if(event.data.type == "display_arraybuffer") {
       if (!isCanvasInitialized) {
-        canvasResult.width = event.data.imageWidth;
-        canvasResult.height = event.data.imageHeight;
+        canvasResult.width = event.data.bitmap.width;
+        canvasResult.height = event.data.bitmap.height;
         isCanvasInitialized = true;
       }
-
-			var bufferView = new Uint8ClampedArray(event.data.buffer, 0, event.data.bufferLength);
-			var imageData = new ImageData(bufferView, event.data.imageWidth, event.data.imageHeight);
-	    // show result
-  		ctxResult.putImageData(imageData, 0, 0);
+      // show result
+      ctxResult.drawImage(event.data.bitmap, 0, 0);
 		}
 	};
 }
