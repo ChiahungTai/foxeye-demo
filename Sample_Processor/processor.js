@@ -41,7 +41,68 @@ var vstride;
 var vskip;
 var isInitialized = false;
 
-function processOneFrame(inputBitmap, outputBitmap) {
+function processOneFrame_OnlyCopy(inputBitmap, outputBitmap) {
+	var bitmap = inputBitmap;
+	var format = bitmap.findOptimalFormat();
+  format = "RGBA32"; // force it to be RGBA32, do conversion in Gecko
+	var length = bitmap.mappedDataLength(format);
+
+	if (format != bitmapFormat || length != bitmapBufferLength) {
+		bitmapFormat = format;
+		bitmapBufferLength = length;
+		bitmapBuffer = new ArrayBuffer(bitmapBufferLength);
+		bitmapBufferView = new Uint8ClampedArray(bitmapBuffer, 0, bitmapBufferLength);
+	}
+	var bitmapPixelLayout = bitmap.mapDataInto(bitmapFormat, bitmapBuffer, 0, bitmapBufferLength);
+
+	// write back to event outputImageBitmap
+	outputBitmap.setDataFrom("RGBA32", bitmapBuffer, 0, bitmapBufferLength,
+                           bitmap.width, bitmap.height, bitmapPixelLayout.channels[0].stride);
+}
+
+function processOneFrame_Invert(inputBitmap, outputBitmap) {
+	var bitmap = inputBitmap;
+	var format = bitmap.findOptimalFormat();
+  format = "RGBA32"; // force it to be RGBA32, do conversion in Gecko
+	var length = bitmap.mappedDataLength(format);
+
+	if (format != bitmapFormat || length != bitmapBufferLength) {
+		bitmapFormat = format;
+		bitmapBufferLength = length;
+		bitmapBuffer = new ArrayBuffer(bitmapBufferLength);
+		bitmapBufferView = new Uint8ClampedArray(bitmapBuffer, 0, bitmapBufferLength);
+	}
+	var bitmapPixelLayout = bitmap.mapDataInto(bitmapFormat, bitmapBuffer, 0, bitmapBufferLength);
+
+	if (!isInitialized) {
+		rgbaBufferLength = bitmapBufferLength;
+		rgbaBuffer = new ArrayBuffer(rgbaBufferLength);
+		rgbaBufferView = new Uint8ClampedArray(rgbaBuffer, 0, rgbaBufferLength);
+
+		isInitialized = true;
+	}
+
+	// convert YUV to Gray or RGBA
+	for (var i = 0; i < bitmap.height; ++i) {
+		for (var j = 0; j < bitmap.width; ++j) {
+
+      /*
+       *  do invert effect
+       */
+			var index = bitmap.width * i + j;
+			rgbaBufferView[index * 4 + 0] = 255 - bitmapBufferView[index * 4 + 0];
+			rgbaBufferView[index * 4 + 1] = 255 - bitmapBufferView[index * 4 + 1];
+			rgbaBufferView[index * 4 + 2] = 255 - bitmapBufferView[index * 4 + 2];
+			rgbaBufferView[index * 4 + 3] = bitmapBufferView[index * 4 + 3]; // no change in the appha channel
+		}
+	}
+
+	// write back to event outputImageBitmap
+	outputBitmap.setDataFrom("RGBA32", rgbaBuffer, 0, rgbaBufferLength,
+                           bitmap.width, bitmap.height, bitmapPixelLayout.channels[0].stride);
+}
+
+function processOneFrame_YUV2Gray(inputBitmap, outputBitmap) {
 	var bitmap = inputBitmap;
 	var format = bitmap.findOptimalFormat();
 	var length = bitmap.mappedDataLength(format);
@@ -79,8 +140,8 @@ function processOneFrame(inputBitmap, outputBitmap) {
 	}
 
 	// convert YUV to Gray or RGBA
-	for (var i = 0; i < yheight; i+=1) {
-		for (var j = 0; j < ywidth; j+=1) {
+	for (var i = 0; i < yheight; ++i) {
+		for (var j = 0; j < ywidth; ++j) {
 
       /*
        *  Convert to Gray, this is faster for demo
@@ -119,5 +180,7 @@ function processOneFrame(inputBitmap, outputBitmap) {
 }
 
 onvideoprocess = function(event) {
-	processOneFrame(event.inputImageBitmap, event.outputImageBitmap);
+  processOneFrame_OnlyCopy(event.inputImageBitmap, event.outputImageBitmap);
+  // processOneFrame_Invert(event.inputImageBitmap, event.outputImageBitmap);
+  // processOneFrame_YUV2Gray(event.inputImageBitmap, event.outputImageBitmap);
 }
