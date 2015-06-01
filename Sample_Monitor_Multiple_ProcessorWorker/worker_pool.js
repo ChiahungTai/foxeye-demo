@@ -14,7 +14,7 @@ WorkerPool.prototype.Init = function(script, numOfWorkers) {
 
 WorkerPool.prototype.Process = function(frameNum, bitmap) {
   var task = new ProcessTask(frameNum, bitmap);
-  this.Dispatch(task);
+  return this.Dispatch(task);
 }
 
 WorkerPool.prototype.Dispatch = function(task) {
@@ -23,12 +23,15 @@ WorkerPool.prototype.Dispatch = function(task) {
       var processWorker = this.avaialableQueue.shift();
       processWorker.worker.postMessage(task);
       this.workingQueue.push(processWorker);
+      return true;
     }
     else {
       console.log("No availabe ProcessWorker now, drop this frame[" + task.frameNum + "]......");
+      return false;
     }
   } else {
     console.log("Cannot handle " + task.taskType);
+    return false;
   }
 }
 

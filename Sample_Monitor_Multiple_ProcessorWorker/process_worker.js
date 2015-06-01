@@ -9,7 +9,7 @@ function clamp(n,low,high) {
   return n;
 }
 
-function processOneFrame(bitmap) {
+function processOneFrame_YUV(bitmap) {
 
   var bitmapFormat = bitmap.findOptimalFormat();;
   var bitmapBufferLength = bitmap.mappedDataLength(bitmapFormat);;
@@ -64,9 +64,44 @@ function processOneFrame(bitmap) {
                      bitmap.width, bitmap.height, ywidth*4)
 }
 
+function processOneFrame_RGBA(bitmap) {
+
+  var bitmapFormat = bitmap.findOptimalFormat();
+  // console.log("Original format = " + bitmapFormat);
+
+  // force to take RGBA format data
+  // handle the convertion in the Gecko
+  bitmapFormat = "RGBA32";
+
+  var bitmapBufferLength = bitmap.mappedDataLength(bitmapFormat);;
+  var bitmapBuffer = new ArrayBuffer(bitmapBufferLength);
+  var bitmapBufferView = new Uint8ClampedArray(bitmapBuffer, 0, bitmapBufferLength);
+  var bitmapPixelLayout = bitmap.mapDataInto(bitmapFormat, bitmapBuffer, 0, bitmapBufferLength);
+
+  for (var i = 0; i < bitmap.height; ++i) {
+    for (var j = 0; j < bitmap.width; ++j) {
+      var index = bitmap.width * i + j;
+      var r = bitmapBufferView[index * 4 + 0];
+      var g = bitmapBufferView[index * 4 + 1];
+      var b = bitmapBufferView[index * 4 + 2];
+
+      bitmapBufferView[index * 4 + 0] = 255 - r;
+      bitmapBufferView[index * 4 + 1] = 255 - g;
+      bitmapBufferView[index * 4 + 2] = 255 - b;
+      // bitmapBufferView[index * 4 + 3] = 255;
+    }
+  }
+
+  // set the processed data back to the input ImageBitmap
+  bitmap.setDataFrom("RGBA32", bitmapBuffer, 0, bitmapBufferLength,
+                     bitmap.width, bitmap.height, bitmapPixelLayout.channels[0].stride);
+}
+
+
 onmessage = function(event) {
   // do process
-  processOneFrame(event.data.bitmap);
+  // processOneFrame_YUV(event.data.bitmap);
+  processOneFrame_RGBA(event.data.bitmap)
 
   // send back to the control worker
   postMessage({"type":"display_arraybuffer",
