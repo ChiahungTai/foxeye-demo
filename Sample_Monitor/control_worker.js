@@ -23,12 +23,36 @@ var frameNum = 0;
 var dropNum = 0;
 
 function showDropRate() {
-	console.log("Drop rate = " + 100 * dropNum / frameNum + "%");
+	var dropRate = 100 * dropNum / frameNum + "%";
+	console.log("Drop rate = " + dropRate);
+	postMessage({"type":"display_dropRateInfo",
+							 "dropRate":dropRate});
 }
 
+function showFPS() {
+	var fps = 1000.0 * (frameNum - dropNum) / (currentTime - veryStartTime);
+	console.log("FPS = " + fps);
+	postMessage({"type":"display_fpsinfo",
+							 "fps":fps});
+}
+
+var isVeryStartTimeInitialized = false;
+var veryStartTime;
+var previousTime;
+var currentTime;
+
 onvideoprocess = function(event) {
-	if (frameNum % 100 == 1) {
+
+	currentTime = new Date().getTime();
+
+	if (!isVeryStartTimeInitialized) {
+		veryStartTime = currentTime;
+		isVeryStartTimeInitialized = true;
+	}
+
+	if (frameNum % 30 == 1) {
 		showDropRate();
+		showFPS();
 	}
 
 	frameNum++;
