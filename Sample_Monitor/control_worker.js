@@ -4,13 +4,22 @@ var isProcessing = false;
 var processWorker;
 onmessage = function(event) {
 	if (event.data.type == "init_process_worker") {
-		processWorker = new Worker("process_worker.js");
+		processWorker = new Worker("process_worker_QR.js");
+
+		processWorker.postMessage({"type":"init_jsqrcode"});
 
 		processWorker.onmessage = function(event) {
 			if (event.data.type == "display_arraybuffer") {
 				// send back to the main thread
 				postMessage({"type":event.data.type,
 										 "bitmap":event.data.bitmap});
+				isProcessing = false;
+			} else if (event.data.type == "display_qrcode") {
+				// send back to the main thread
+				postMessage({"type":event.data.type,
+										 "qrcode":event.data.qrcode});
+				isProcessing = false;
+			} else if (event.data.type == "qrcode_not_found") {
 				isProcessing = false;
 			}
 		};
@@ -50,7 +59,7 @@ onvideoprocess = function(event) {
 		isVeryStartTimeInitialized = true;
 	}
 
-	if (frameNum % 30 == 1) {
+	if (frameNum % 100 == 1) {
 		showDropRate();
 		showFPS();
 	}
@@ -58,14 +67,14 @@ onvideoprocess = function(event) {
 	frameNum++;
 	if (isProcessing) {
 		// drop this frame
-		console.log("drop frame[" + frameNum + "]");
+		// console.log("drop frame[" + frameNum + "]");
 		dropNum++;
 		return;
 	} else {
 		// console.log("process frame[" + frameNum + "]")
 		isProcessing = true;
 		// send to the process worker
-		processWorker.postMessage({"type":"convert_color",
+		processWorker.postMessage({"type":"process_one_frame",
   														 "bitmap":event.inputImageBitmap});
 	}
 };
