@@ -5,7 +5,7 @@
   <title>Video Workers on MediaStreamTrack</title>
 </head>
 <body>
-<div id="container";style="overflow:hidden;width:2000px">
+<div id="container" style="overflow:hidden;width:2000px">
     <div id="inner" style="overflow:hidden;width:2000px">
         <div style="float:left;margin:10px;">
             <input type="submit" id="playButton" class="buttonStyle" value="Play"></input>
@@ -13,6 +13,12 @@
         <div style="float:left;margin:10px;">
             <input type="submit" id="stopButton" class="buttonStyle" value="Stop"></input>
         </div>
+    </div>
+    <div id="inner" style="overflow:hidden;width:2000px">
+      <div id="fpsInfo">
+      </div>
+      <div id="dropRateInfo">
+      </div>
     </div>
     <div id="inner" style="overflow:hidden;width:2000px">
         <div style="float:left;margin:10px;">
@@ -32,8 +38,10 @@ var isCanvasInitialized = false;
 var canvasResult = document.getElementById('result');
 var ctxResult = canvasResult.getContext('2d');;
 var localMediaStream;
-var playButton = document.getElementById('playButton');
-var stopButton = document.getElementById('stopButton');
+var playButton    = document.getElementById('playButton');
+var stopButton    = document.getElementById('stopButton');
+var fpsInfo       = document.getElementById('fpsInfo');
+var dropRateInfo  = document.getElementById('dropRateInfo');
 var controlWorker;
 
 //Checking camera
@@ -87,7 +95,6 @@ function initControlWorker() {
 		controlWorker.postMessage({"type":"set_trackid", "id":tracks[0].id});
     controlWorker.postMessage({"type":"init_process_worker"});
     tracks[0].addWorkerMonitor(controlWorker, {});
-    // tracks[0].addWorkerProcessor(controlWorker, {});
 	}
 
 	controlWorker.onmessage = function(event) {
@@ -97,7 +104,12 @@ function initControlWorker() {
         canvasResult.height = event.data.bitmap.height;
         isCanvasInitialized = true;
       }
+      // show result
       ctxResult.drawImage(event.data.bitmap, 0, 0);
+    } else if (event.data.type == "display_fpsinfo") {
+      fpsInfo.textContent = "FPS = " + event.data.fps;
+    } else if (event.data.type == "display_dropRateInfo") {
+      dropRateInfo.textContent = "DropRate = " + event.data.dropRate;
     }
 	};
 }
