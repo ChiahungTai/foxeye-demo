@@ -59,7 +59,12 @@ function processOneFrame_YUV(bitmap) {
 
   // set the processed data back to the input ImageBitmap
   bitmap.setDataFrom("RGBA32", rgbaBuffer, 0, rgbaBufferLength,
-                     bitmap.width, bitmap.height, ywidth*4)
+                     bitmap.width, bitmap.height, ywidth*4);
+
+  // send back to the control worker
+  postMessage({"type":"display_imagebitmap",
+              "bitmap":bitmap});
+
 }
 
 function processOneFrame_RGBA(bitmap) {
@@ -93,14 +98,15 @@ function processOneFrame_RGBA(bitmap) {
   // set the processed data back to the input ImageBitmap
   bitmap.setDataFrom("RGBA32", bitmapBuffer, 0, bitmapBufferLength,
                      bitmap.width, bitmap.height, bitmapPixelLayout.channels[0].stride);
+
+  // send back to the control worker
+  postMessage({"type":"display_imagebitmap",
+              "bitmap":bitmap});
+
 }
 
 onmessage = function(event) {
 	// do the invernt effect
   // processOneFrame_YUV(event.data.bitmap);
   processOneFrame_RGBA(event.data.bitmap);
-
-	// send back to the control worker
-  postMessage({"type":"display_arraybuffer",
-               "bitmap":event.data.bitmap});
 };
