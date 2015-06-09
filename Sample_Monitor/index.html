@@ -101,7 +101,7 @@ function initControlWorker() {
 	}
 
 	controlWorker.onmessage = function(event) {
-		if (event.data.type == "display_arraybuffer") {
+		if (event.data.type == "display_imagebitamp") {
       if (!isCanvasInitialized) {
         canvasResult.width = event.data.bitmap.width;
         canvasResult.height = event.data.bitmap.height;
@@ -109,6 +109,16 @@ function initControlWorker() {
       }
       // show result
       ctxResult.drawImage(event.data.bitmap, 0, 0);
+    } else if (event.data.type == "display_arraybuffer") {
+      if (!isCanvasInitialized) {
+        canvasResult.width = event.data.width;
+        canvasResult.height = event.data.height;
+        isCanvasInitialized = true;
+      }
+      // show result
+      var bufferView = new Uint8ClampedArray(event.data.buffer, 0, event.data.length);
+      var imageData = new ImageData(bufferView, event.data.width, event.data.height);
+      ctxResult.putImageData(imageData, 0, 0);
 		} else if (event.data.type == "display_fpsinfo") {
       fpsInfo.textContent = "FPS = " + event.data.fps;
     } else if (event.data.type == "display_dropRateInfo") {

@@ -4,22 +4,30 @@ var isProcessing = false;
 var processWorker;
 onmessage = function(event) {
 	if (event.data.type == "init_process_worker") {
-		processWorker = new Worker("process_worker_QR.js");
+		processWorker = new Worker("process_worker_face.js");
 
-		processWorker.postMessage({"type":"init_jsqrcode"});
+		processWorker.postMessage({"type":"init"});
 
 		processWorker.onmessage = function(event) {
-			if (event.data.type == "display_arraybuffer") {
+			if (event.data.type == "display_imagebitmap") {
 				// send back to the main thread
 				postMessage({"type":event.data.type,
 										 "bitmap":event.data.bitmap});
+				isProcessing = false;
+			} else if (event.data.type == "display_arraybuffer") {
+				postMessage({"type":event.data.type,
+										 "buffer":event.data.buffer,
+										 "length":event.data.length,
+										 "width":event.data.width,
+										 "height":event.data.height},
+										[event.data.buffer]);
 				isProcessing = false;
 			} else if (event.data.type == "display_qrcode") {
 				// send back to the main thread
 				postMessage({"type":event.data.type,
 										 "qrcode":event.data.qrcode});
 				isProcessing = false;
-			} else if (event.data.type == "qrcode_not_found") {
+			} else if (event.data.type == "operation_finished_without_result") {
 				isProcessing = false;
 			}
 		};

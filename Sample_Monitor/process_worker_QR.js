@@ -4,7 +4,7 @@ function read(qrcode) {
 
 function error(e) {
   // console.error(e, e.stack);
-  postMessage({"type":"qrcode_not_found"});
+  postMessage({"type":"operation_finished_without_result"});
 }
 
 function initQRCode() {
@@ -53,7 +53,7 @@ function processOneFrame_RGBA(bitmap) {
 
 onmessage = function(event) {
 
-  if (event.data.type == "init_jsqrcode") {
+  if (event.data.type == "init") {
     console.log("init_jsqrcode");
     initQRCode();
   } else if (event.data.type == "process_one_frame") {
