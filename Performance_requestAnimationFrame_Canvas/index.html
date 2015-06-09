@@ -1,0 +1,235 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Video Workers on MediaStreamTrack</title>
+</head>
+<body>
+<div id="container";style="overflow:hidden;width:2000px">
+    <div id="inner" style="overflow:hidden;width:2000px">
+        <div style="float:left;margin:10px;">
+            <input type="submit" id="playButton" class="buttonStyle" value="Play"></input>
+        </div>
+        <div style="float:left;margin:10px;">
+            <input type="submit" id="stopButton" class="buttonStyle" value="Stop"></input>
+        </div>
+    </div>
+    <div id="inner" style="overflow:hidden;width:2000px">
+        <div style="float:left;margin:10px;">
+            <video id="webcam"></video>
+        </div>
+        <div style="float:left;margin:10px;">
+            <canvas id="result"></canvas>
+        </div>
+    </div>
+</div>
+</body>
+
+<script type="text/javascript">
+var canvasOperate = document.createElement('canvas');
+var ctxOperate = canvasOperate.getContext('2d');
+var canvasResult = document.getElementById('result');
+var ctxResult = canvasResult.getContext('2d');
+var video = document.getElementById('webcam');
+var isContinuous = true;
+var localMediaStream;
+var playButton = document.getElementById('playButton');
+var stopButton = document.getElementById('stopButton');
+
+var isOperationInitialized = false;
+var operationArrayBuffer;
+var operationTypedArray;
+var operationImageData;
+
+//Checking camera
+function hasGetUserMedia() {
+  return !!(navigator.getUserMedia ||
+            navigator.webkitGetUserMedia ||
+            navigator.mozGetUserMedia ||
+            navigator.msGetUserMedia);
+}
+
+if (hasGetUserMedia()) {
+    console.log("Camera OK");
+} else {
+    alert("Invalid!");
+}
+
+navigator.getUserMedia = navigator.getUserMedia ||
+                         navigator.webkitGetUserMedia ||
+                         navigator.mozGetUserMedia ||
+                         navigator.msGetUserMedia;
+
+playButton.onclick = function() {
+  navigator.getUserMedia({video: true, audio: false} , onSuccess, onFail);
+}
+
+stopButton.onclick = function() {
+  isContinuous = false;
+  video.pause();
+  localMediaStream.stop();
+  showStatistics();
+}
+
+function onSuccess(stream) {
+  localMediaStream = stream;
+  initVideo();
+}
+
+function onFail(e) {
+  console.log('Cannot access WebCAM!', e);
+}
+
+function initVideo() {
+  video.src = window.URL.createObjectURL(localMediaStream);
+  video.onloadeddata = initCanvases();
+  video.play();
+}
+
+function initCanvases() {
+  console.log("video.videoWidth = " + video.videoWidth);
+  console.log("video.videoHeight = " + video.videoHeight);
+  console.log("video.width = " + video.width);
+  console.log("video.height = " + video.height);
+
+  if (video.videoWidth == 0 ||  video.videoHeight == 0) {
+    // still not able to init canvas now, wait for next frame.
+    requestAnimationFrame(initCanvases);
+  }
+  else {
+    width = video.videoWidth
+    height = video.videoHeight;
+    video.setAttribute('width', width);
+    video.setAttribute('height', height);
+    canvasOperate.setAttribute('width', width);
+    canvasOperate.setAttribute('height', height);
+    canvasResult.setAttribute('width', width);
+    canvasResult.setAttribute('height', height);
+
+    isContinuous = true;
+    requestAnimationFrame(processOneFrame);
+  }
+}
+
+function initControlWorker() {
+	controlWorker = new VideoWorker("control_worker.js");
+
+	if (!!controlWorker) {
+		var tracks = localMediaStream.getTracks();
+		controlWorker.postMessage({"type":"set_trackid", "id":tracks[0].id});
+    controlWorker.postMessage({"type":"init_process_worker"});
+    tracks[0].addWorkerMonitor(controlWorker, {});
+	}
+
+	controlWorker.onmessage = function(event) {
+		if(event.data.type == "display_arraybuffer") {
+      if (!isCanvasInitialized) {
+        canvasResult.width = event.data.bitmap.width;
+        canvasResult.height = event.data.bitmap.height;
+        isCanvasInitialized = true;
+      }
+      // show result
+      ctxResult.drawImage(event.data.bitmap, 0, 0);
+		}
+	};
+}
+
+var isVeryStartTimeInitialized = false;
+var veryStartTime;
+var previousTime;
+var currentTime;
+var frameNum = 0;
+
+var drawImageS = 0;
+var drawImageE = 0;
+var drawImageT = 0;
+
+var getImageDataS = 0;
+var getImageDataE = 0;
+var getImageDataT = 0;
+
+var copyBufferS = 0;
+var copyBufferE = 0;
+var copyBufferT = 0;
+
+var putImageDataS = 0;
+var putImageDataE = 0;
+var putImageDataT = 0;
+
+function showStatistics() {
+  console.log("drawImage(): " + (drawImageT / frameNum));
+  console.log("getImageData(): " + (getImageDataT / frameNum));
+  console.log("copyBuffer(): " + (copyBufferT / frameNum));
+  console.log("putImageData(): " + (putImageDataT / frameNum));
+}
+
+
+function processOneFrame() {
+
+  currentTime = new Date().getTime();
+
+  // console.log("time = " + (currentTime - previousTime));
+  // previousTime = currentTime;
+
+  if (!isVeryStartTimeInitialized) {
+    veryStartTime = currentTime;
+    isVeryStartTimeInitialized = true;
+  }
+
+  frameNum += 1;
+  if (frameNum % 30 == 1) {
+    console.log("FPS = " + 1000.0 * (frameNum) / (currentTime - veryStartTime));
+  }
+
+  // get the data of current frame
+  drawImageS = new Date().getTime();
+  ctxOperate.drawImage(video, 0, 0, video.width, video. height);
+  drawImageE = new Date().getTime();
+  drawImageT += (drawImageE - drawImageS);
+
+  getImageDataS = new Date().getTime();
+  var imageData = ctxOperate.getImageData(0, 0, video.width, video.height);
+  getImageDataE = new Date().getTime();
+  getImageDataT += (getImageDataE - getImageDataS);
+
+  if (!isOperationInitialized) {
+    operationArrayBuffer = new ArrayBuffer(imageData.data.length);
+    operationTypedArray = new Uint8ClampedArray(operationArrayBuffer, 0, imageData.data.length);
+    operationImageData = new ImageData(operationTypedArray, imageData.width, imageData.height);
+    isOperationInitialized = true;
+  }
+
+  // copy the buffer into the oprartion buffer (simulate ASM.JS heap)
+  copyBufferS = new Date().getTime();
+  operationTypedArray.set(imageData.data);
+  copyBufferE = new Date().getTime();
+  copyBufferT += (copyBufferE - copyBufferS);
+
+  // do something on the imageData...
+  // implement the "inver" filter
+  var numPixels = video.width * video.height;
+  for (var i = 0; i < numPixels; ++i) {
+      var r = operationTypedArray[4*i+0];    // read R
+      var g = operationTypedArray[4*i+1];    // read G
+      var b = operationTypedArray[4*i+2];    // read B
+      operationTypedArray[4*i+0] = 255 - r;    // write the new R value back
+      operationTypedArray[4*i+1] = 255 - g;    // write the new G value back
+      operationTypedArray[4*i+2] = 255 - b;    // write the new B value back
+      // operationTypedArray[4*i+3] = 255;    // A
+  }
+
+  // show result
+  putImageDataS = new Date().getTime();
+  ctxResult.putImageData(operationImageData, 0, 0);
+  putImageDataE = new Date().getTime();
+  putImageDataT += (putImageDataE - putImageDataS);
+
+  // ask for next frame
+  if (isContinuous) {
+    requestAnimationFrame(processOneFrame);
+  } else {
+    return;
+  }
+}
+</script>
+</html>
