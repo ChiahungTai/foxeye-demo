@@ -39,9 +39,6 @@ clean:
 	rm ./bin/*.bc ./bin/*.data ./bin/*js ./bin/*.mem
 
 install:
-	rsync -rupE ./bin/*.js ../Demo_FaceDetection_WebAPP_imageData/
-	rsync -rupE ./bin/*.js.mem ../Demo_FaceDetection_WebAPP_imageData/
-	rsync -rupE ./bin/*.data ../Demo_FaceDetection_WebAPP_imageData/
-	rsync -rupE ./bin/*.js ../Demo_FaceDetection_WebAPP_imageBitmap/
-	rsync -rupE ./bin/*.js.mem ../Demo_FaceDetection_WebAPP_imageBitmap/
-	rsync -rupE ./bin/*.data ../Demo_FaceDetection_WebAPP_imageBitmap/
+	rsync -rupE ./bin/*.js ../../Sample_Monitor/
+	rsync -rupE ./bin/*.js.mem ../../Sample_Monitor/
+	rsync -rupE ./bin/*.data ../../Sample_Monitor/

@@ -101,7 +101,7 @@ function initControlWorker() {
 	}
 
 	controlWorker.onmessage = function(event) {
-		if (event.data.type == "display_imagebitamp") {
+		if (event.data.type == "display_imagebitmap") {
       if (!isCanvasInitialized) {
         canvasResult.width = event.data.bitmap.width;
         canvasResult.height = event.data.bitmap.height;

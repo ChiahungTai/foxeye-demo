@@ -39,7 +39,7 @@ static void detectAndDisplay(cv::Mat frame, double scaleFactor, int minWidth, in
         // {
             //-- Draw the face
             cv::Point center( faces[i].x + faces[i].width/2, faces[i].y + faces[i].height/2 );
-            cv::ellipse( frame, center, cv::Size( faces[i].width/2, faces[i].height/2 ), 0, 0, 360, cv::Scalar( 255, 0, 0 ), 5, 8, 0 );
+            cv::ellipse( frame, center, cv::Size( faces[i].width/2, faces[i].height/2 ), 0, 0, 360, cv::Scalar( 255, 0, 0, 255 ), 5, 8, 0 );
 
             // for( size_t j = 0; j < eyes.size(); j++ )
             // { //-- Draw the eyes
