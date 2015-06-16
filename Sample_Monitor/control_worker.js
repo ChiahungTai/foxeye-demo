@@ -4,7 +4,14 @@ var isProcessing = false;
 var processWorker;
 onmessage = function(event) {
 	if (event.data.type == "init_process_worker") {
-		processWorker = new Worker("process_worker_face.js");
+
+		console.log("event.data.function = " + event.data.function);
+
+		if (event.data.function == "face") {
+			processWorker = new Worker("process_worker_face.js");
+		} else if (event.data.function == "qrcode") {
+			processWorker = new Worker("process_worker_QR.js");
+		}
 
 		processWorker.postMessage({"type":"init"});
 

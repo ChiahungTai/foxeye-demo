@@ -6,30 +6,41 @@
 </head>
 <body>
 <div id="container" style="overflow:hidden;width:2000px">
-    <div id="inner" style="overflow:hidden;width:2000px">
-        <div style="float:left;margin:10px;">
-            <input type="submit" id="playButton" class="buttonStyle" value="Play"></input>
-        </div>
-        <div style="float:left;margin:10px;">
-            <input type="submit" id="stopButton" class="buttonStyle" value="Stop"></input>
-        </div>
+  <div data-role="fieldcontain" id="fieldcontain" style="overflow:hidden;width:500px">
+    <fieldset data-role="controlgroup" data-type="horizontal" data-role="fieldcontain">
+      <legend>Choose a demo function:</legend>
+
+      <input type="radio" name="demo-functions" id="demo-face" value="face" defaultChecked/>
+      <label for="demo-face">Face detection</label>
+
+      <input type="radio" name="demo-functions" id="demo-qrcode" value="qrcode"/>
+      <label for="demo-qrcode">QR code scannar</label>
+    </fieldset>
+  </div>
+  <div id="inner" style="overflow:hidden;width:2000px">
+    <div style="float:left;margin:10px;">
+      <input type="submit" id="playButton" class="buttonStyle" value="Play"></input>
     </div>
-    <div id="inner" style="overflow:hidden;width:2000px">
-      <div id="fpsInfo">
-      </div>
-      <div id="dropRateInfo">
-      </div>
-      <div id="qrcodeInfo">
-      </div>
+    <div style="float:left;margin:10px;">
+      <input type="submit" id="stopButton" class="buttonStyle" value="Stop"></input>
     </div>
-    <div id="inner" style="overflow:hidden;width:2000px">
-        <div style="float:left;margin:10px;">
-            <video id="webcam"></video>
-        </div>
-        <div style="float:left;margin:10px;">
-            <canvas id="result"></canvas>
-        </div>
+  </div>
+  <div id="inner" style="overflow:hidden;width:2000px">
+    <div id="fpsInfo">
     </div>
+    <div id="dropRateInfo">
+    </div>
+    <div id="qrcodeInfo">
+    </div>
+  </div>
+  <div id="inner" style="overflow:hidden;width:2000px">
+    <div style="float:left;margin:10px;">
+      <video id="webcam"></video>
+    </div>
+    <div style="float:left;margin:10px;">
+      <canvas id="result"></canvas>
+    </div>
+  </div>
 </div>
 </body>
 
@@ -46,6 +57,26 @@ var fpsInfo       = document.getElementById('fpsInfo');
 var dropRateInfo  = document.getElementById('dropRateInfo');
 var qrcodeInfo    = document.getElementById('qrcodeInfo');
 var controlWorker;
+
+// setup the radio button listeners
+var currentDemoFunction = "";
+document.getElementById('demo-face').onclick = function() {
+  console.log("Run Face detection......");
+};
+
+document.getElementById('demo-qrcode').onclick = function() {
+  console.log("Run QR code scannar......");
+};
+
+function getCurrentDeomFunction() {
+  if (document.getElementById('demo-face').checked) {
+    return document.getElementById('demo-face').value;
+  } else if (document.getElementById('demo-qrcode').checked) {
+    return document.getElementById('demo-qrcode').value;
+  } else {
+    return document.getElementById('demo-face').value;
+  }
+}
 
 //Checking camera
 function hasGetUserMedia() {
@@ -96,7 +127,7 @@ function initControlWorker() {
 	if (!!controlWorker) {
 		var tracks = localMediaStream.getTracks();
 		controlWorker.postMessage({"type":"set_trackid", "id":tracks[0].id});
-    controlWorker.postMessage({"type":"init_process_worker"});
+    controlWorker.postMessage({"type":"init_process_worker", "function":getCurrentDeomFunction()});
     tracks[0].addWorkerMonitor(controlWorker, {});
 	}
 
