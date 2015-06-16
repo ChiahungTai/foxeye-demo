@@ -1,0 +1,271 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Video Workers on MediaStreamTrack</title>
+</head>
+<body>
+<div id="container";style="overflow:hidden;width:2000px">
+  <div id="inner" style="overflow:hidden;width:2000px">
+    <div style="float:left;margin:10px;">
+      <canvas id="animation1"></canvas>
+    </div>
+    <div style="float:left;margin:10px;">
+      <canvas id="animation2"></canvas>
+    </div>
+  </div>
+  <div id="inner" style="overflow:hidden;width:2000px">
+    <div style="float:left;margin:10px;">
+      <input type="submit" id="playButton" class="buttonStyle" value="Play"></input>
+    </div>
+    <div style="float:left;margin:10px;">
+      <input type="submit" id="stopButton" class="buttonStyle" value="Stop"></input>
+    </div>
+  </div>
+  <div id="inner" style="overflow:hidden;width:2000px">
+    <div id="fpsInfo">
+    </div>
+    <div id="dropRateInfo">
+    </div>
+    <div id="qrcodeInfo">
+    </div>
+  </div>
+  <div id="inner" style="overflow:hidden;width:2000px">
+    <div style="float:left;margin:10px;">
+      <video id="webcam"></video>
+    </div>
+    <div style="float:left;margin:10px;">
+      <canvas id="result"></canvas>
+    </div>
+  </div>
+</div>
+</body>
+
+<script type="text/javascript" src="animation.js"></script>
+<script type="text/javascript">
+var canvasAnim1 = document.getElementById('animation1');
+var ctxAnim1 = canvasAnim1.getContext('2d');
+var canvasAnim2 = document.getElementById('animation2');
+var ctxAnim2 = canvasAnim2.getContext('2d');
+var canvasOperate = document.createElement('canvas');
+var ctxOperate = canvasOperate.getContext('2d');
+var isCanvasInitialized = false;
+var canvasResult = document.getElementById('result');
+var ctxResult = canvasResult.getContext('2d');
+var video = document.getElementById('webcam');
+var isContinuous = true;
+var localMediaStream;
+var playButton    = document.getElementById('playButton');
+var stopButton    = document.getElementById('stopButton');
+var fpsInfo       = document.getElementById('fpsInfo');
+var dropRateInfo  = document.getElementById('dropRateInfo');
+var qrcodeInfo    = document.getElementById('qrcodeInfo');
+var processWorker;
+
+var isOperationInitialized = false;
+var operationArrayBuffer;
+var operationTypedArray;
+var operationImageData;
+
+var processOneFrame = processOneFrame_QR_ArrayBuffer;
+
+initAnimation(ctxAnim1, fpsInfo);
+initWokrer();
+
+function initWokrer() {
+  processWorker = new Worker("process_worker_QR.js");
+  processWorker.postMessage({"type":"init"});
+
+  processWorker.onmessage = function(event) {
+		if (event.data.type == "display_imagebitmap") {
+      if (!isCanvasInitialized) {
+        canvasResult.width = event.data.bitmap.width;
+        canvasResult.height = event.data.bitmap.height;
+        isCanvasInitialized = true;
+      }
+      // show result
+      ctxResult.drawImage(event.data.bitmap, 0, 0);
+    } else if (event.data.type == "display_arraybuffer") {
+      if (!isCanvasInitialized) {
+        canvasResult.width = event.data.width;
+        canvasResult.height = event.data.height;
+        isCanvasInitialized = true;
+      }
+      // show result
+      var bufferView = new Uint8ClampedArray(event.data.buffer, 0, event.data.length);
+      var imageData = new ImageData(bufferView, event.data.width, event.data.height);
+      ctxResult.putImageData(imageData, 0, 0);
+		} else if (event.data.type == "display_fpsinfo") {
+      fpsInfo.textContent = "FPS = " + event.data.fps;
+    } else if (event.data.type == "display_dropRateInfo") {
+      dropRateInfo.textContent = "DropRate = " + event.data.dropRate;
+    } else if (event.data.type == "display_qrcode") {
+      qrcodeInfo.textContent = "QR code = " + event.data.qrcode;
+      if (isContinuous) {
+        processOneFrame();
+      }
+    } else if (event.data.type == "operation_finished_without_result") {
+      if (isContinuous) {
+        processOneFrame();
+      }
+    }
+	};
+}
+
+//Checking camera
+function hasGetUserMedia() {
+  return !!(navigator.getUserMedia ||
+            navigator.webkitGetUserMedia ||
+            navigator.mozGetUserMedia ||
+            navigator.msGetUserMedia);
+}
+
+if (hasGetUserMedia()) {
+    console.log("Camera OK");
+} else {
+    alert("Invalid!");
+}
+
+navigator.getUserMedia = navigator.getUserMedia ||
+                         navigator.webkitGetUserMedia ||
+                         navigator.mozGetUserMedia ||
+                         navigator.msGetUserMedia;
+
+playButton.onclick = function() {
+
+
+  var hdConstraints = {
+    video: {
+      mandatory: {
+        minWidth: 1280,
+        minHeight: 720
+      }
+    }
+  };
+  navigator.getUserMedia(hdConstraints , onSuccess, onFail);
+
+  // navigator.getUserMedia({video: true, audio: false} , onSuccess, onFail);
+
+  // video.src = "videoplayback.webm";
+  // video.onloadeddata = initCanvases();
+  // video.play();
+}
+
+stopButton.onclick = function() {
+  isContinuous = false;
+  video.pause();
+  localMediaStream.stop();
+}
+
+function onSuccess(stream) {
+  localMediaStream = stream;
+  initVideo();
+}
+
+function onFail(e) {
+  console.log('Cannot access WebCAM!', e);
+}
+
+function initVideo() {
+  video.src = window.URL.createObjectURL(localMediaStream);
+  video.onloadeddata = initCanvases();
+  video.play();
+}
+
+function initCanvases() {
+  // console.log("video.videoWidth = " + video.videoWidth);
+  // console.log("video.videoHeight = " + video.videoHeight);
+  // console.log("video.width = " + video.width);
+  // console.log("video.height = " + video.height);
+
+  if (video.videoWidth == 0 ||  video.videoHeight == 0) {
+    // still not able to init canvas now, wait for next frame.
+    requestAnimationFrame(initCanvases);
+  }
+  else {
+    width = video.videoWidth
+    height = video.videoHeight;
+    video.setAttribute('width', width);
+    video.setAttribute('height', height);
+    canvasOperate.setAttribute('width', width);
+    canvasOperate.setAttribute('height', height);
+    canvasResult.setAttribute('width', width);
+    canvasResult.setAttribute('height', height);
+
+    isContinuous = true;
+    processOneFrame();
+  }
+}
+
+var isVeryStartTimeInitialized = false;
+var veryStartTime;
+var previousTime;
+var currentTime;
+var frameNum = 0;
+
+function processOneFrame_QR() {
+
+  currentTime = new Date().getTime();
+
+  // console.log("time = " + (currentTime - previousTime));
+  // previousTime = currentTime;
+
+  if (!isVeryStartTimeInitialized) {
+    veryStartTime = currentTime;
+    isVeryStartTimeInitialized = true;
+  }
+
+  frameNum += 1;
+  if (frameNum % 30 == 1) {
+    console.log("FPS = " + 1000.0 * (frameNum) / (currentTime - veryStartTime));
+  }
+
+  var promise = createImageBitmap(video);
+  promise.then(function(bitmap) {
+    processWorker.postMessage({"type":"process_one_frame",
+                              "bitmap":bitmap});
+  });
+
+}
+
+function processOneFrame_QR_ArrayBuffer() {
+
+  currentTime = new Date().getTime();
+
+  // console.log("time = " + (currentTime - previousTime));
+  // previousTime = currentTime;
+
+  if (!isVeryStartTimeInitialized) {
+    veryStartTime = currentTime;
+    isVeryStartTimeInitialized = true;
+  }
+
+  frameNum += 1;
+  if (frameNum % 30 == 1) {
+    console.log("FPS = " + 1000.0 * (frameNum) / (currentTime - veryStartTime));
+  }
+
+  // get the data of current frame
+  ctxOperate.drawImage(video, 0, 0, video.width, video. height);
+  var imageData = ctxOperate.getImageData(0, 0, video.width, video.height);
+
+  if (!isOperationInitialized) {
+    operationArrayBuffer = new ArrayBuffer(imageData.data.length);
+    operationTypedArray = new Uint8ClampedArray(operationArrayBuffer, 0, imageData.data.length);
+    operationImageData = new ImageData(operationTypedArray, imageData.width, imageData.height);
+    isOperationInitialized = true;
+  }
+
+  // copy the buffer into the oprartion buffer (simulate ASM.JS heap)
+  operationTypedArray.set(imageData.data);
+
+  processWorker.postMessage({"type":"process_one_frame_arraybuffer",
+                             "buffer":imageData.data.buffer,
+                             "offset":"0",
+                             "length":imageData.data.length,
+                             "width":imageData.width,
+                             "height":imageData.height},
+                            [imageData.data.buffer]);
+}
+</script>
+</html>
