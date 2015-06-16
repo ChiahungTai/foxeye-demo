@@ -1,3 +1,5 @@
+importScripts("../LibOpenCV/opencv.js");
+
 var trackid;
 onmessage = function(event) {
   if(event.data.type == "set_trackid") {
@@ -179,8 +181,61 @@ function processOneFrame_YUV2Gray(inputBitmap, outputBitmap) {
 	outputBitmap.setDataFrom("RGBA32", rgbaBuffer, 0, rgbaBufferLength, ywidth, yheight, ystride*4);
 }
 
+function createMat() {
+
+}
+
+var kernel = 5;
+var soruce;
+var dest;
+var element;
+
+function processOneFrame_OpenCV_Erode(inputBitmap, outputBitmap) {
+  var bitmap = inputBitmap;
+  var format = bitmap.findOptimalFormat();
+  format = "RGBA32"; // force it to be RGBA32, do conversion in Gecko
+  var length = bitmap.mappedDataLength(format);
+
+  if (format != bitmapFormat || length != bitmapBufferLength) {
+    bitmapFormat = format;
+    bitmapBufferLength = length;
+    bitmapBuffer = new ArrayBuffer(bitmapBufferLength);
+    bitmapBufferView = new Uint8ClampedArray(bitmapBuffer, 0, bitmapBufferLength);
+
+    source = new Module.Mat(bitmap.height, bitmap.width, Module.CV_8UC4);
+    element = Module.getStructuringElement(0,
+                                           [kernel, kernel],
+                                           [(kernel - 1) / 2, (kernel - 1) / 2]);
+    dest = new Module.Mat();
+  }
+
+  // write data into the mat.
+  // actually, write data into ASM.JS heap
+  var bitmapPixelLayout = bitmap.mapDataInto(bitmapFormat, Module.HEAPU8.buffer, source.data, bitmapBufferLength);
+
+  // Algorithm
+  var begin = performance.now();
+  Module.erode(source, dest, element);
+  // Module.dilate(source, dest, element);
+  // Module.blur(source, dest, [kernel, kernel], [-1,-1], Module.BORDER_DEFAULT);
+  // Module.GaussianBlur(source, dest, [kernel, kernel], 0, 0, Module.BORDER_DEFAULT);
+  // Module.medianBlur(source, dest, kernel);
+  var duration = performance.now() - begin;
+  console.log("duration = " + duration);
+
+  // write back to event outputImageBitmap
+  outputBitmap.setDataFrom("RGBA32", Module.HEAPU8.buffer, dest.data, bitmapBufferLength,
+                           bitmap.width, bitmap.height, bitmapPixelLayout.channels[0].stride);
+
+  // // release resource
+  // dest.delete();
+  // element.delete();
+  // source.delete();
+}
+
 onvideoprocess = function(event) {
-  processOneFrame_OnlyCopy(event.inputImageBitmap, event.outputImageBitmap);
+  processOneFrame_OpenCV_Erode(event.inputImageBitmap, event.outputImageBitmap);
+  // processOneFrame_OnlyCopy(event.inputImageBitmap, event.outputImageBitmap);
   // processOneFrame_Invert(event.inputImageBitmap, event.outputImageBitmap);
   // processOneFrame_YUV2Gray(event.inputImageBitmap, event.outputImageBitmap);
 }
