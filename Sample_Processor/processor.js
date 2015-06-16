@@ -1,9 +1,15 @@
 importScripts("../LibOpenCV/opencv.js");
 
 var trackid;
+var currentFunction = "";
 onmessage = function(event) {
   if(event.data.type == "set_trackid") {
   	trackid = event.data.id;
+  } else if (event.data.type == "set_function") {
+    currentFunction = event.data.function;
+    bitmapFormat = "";
+    bitmapBufferLength = 0;
+    isInitialized = false;
   }
 }
 
@@ -181,16 +187,14 @@ function processOneFrame_YUV2Gray(inputBitmap, outputBitmap) {
 	outputBitmap.setDataFrom("RGBA32", rgbaBuffer, 0, rgbaBufferLength, ywidth, yheight, ystride*4);
 }
 
-function createMat() {
-
-}
-
-var kernel = 5;
-var soruce;
+var kernel = 7;
+var threshold = 100;
+var thresholdMax = 200;
+var source;
 var dest;
 var element;
 
-function processOneFrame_OpenCV_Erode(inputBitmap, outputBitmap) {
+function processOneFrame_OpenCV_Erode(inputBitmap, outputBitmap, demoFucntion) {
   var bitmap = inputBitmap;
   var format = bitmap.findOptimalFormat();
   format = "RGBA32"; // force it to be RGBA32, do conversion in Gecko
@@ -215,11 +219,20 @@ function processOneFrame_OpenCV_Erode(inputBitmap, outputBitmap) {
 
   // Algorithm
   var begin = performance.now();
-  Module.erode(source, dest, element);
-  // Module.dilate(source, dest, element);
-  // Module.blur(source, dest, [kernel, kernel], [-1,-1], Module.BORDER_DEFAULT);
-  // Module.GaussianBlur(source, dest, [kernel, kernel], 0, 0, Module.BORDER_DEFAULT);
-  // Module.medianBlur(source, dest, kernel);
+  if (demoFucntion == "erode") {
+    Module.erode(source, dest, element);
+  } else if (demoFucntion == "dilate") {
+    Module.dilate(source, dest, element);
+  } else if (demoFucntion == "blur") {
+    Module.blur(source, dest, [kernel, kernel], [-1,-1], Module.BORDER_DEFAULT);
+  } else if (demoFucntion == "gaussian") {
+    Module.GaussianBlur(source, dest, [kernel, kernel], 0, 0, Module.BORDER_DEFAULT);
+  } else if (demoFucntion == "median") {
+    Module.medianBlur(source, dest, kernel);
+  } else if (demoFucntion == "threshold") {
+    var THRESH_BINARY = 0;
+    Module.threshold(source, dest, threshold, thresholdMax, THRESH_BINARY);
+  }
   var duration = performance.now() - begin;
   console.log("duration = " + duration);
 
@@ -234,8 +247,17 @@ function processOneFrame_OpenCV_Erode(inputBitmap, outputBitmap) {
 }
 
 onvideoprocess = function(event) {
-  processOneFrame_OpenCV_Erode(event.inputImageBitmap, event.outputImageBitmap);
-  // processOneFrame_OnlyCopy(event.inputImageBitmap, event.outputImageBitmap);
-  // processOneFrame_Invert(event.inputImageBitmap, event.outputImageBitmap);
-  // processOneFrame_YUV2Gray(event.inputImageBitmap, event.outputImageBitmap);
+  if (currentFunction == "" || currentFunction == "copy") {
+    processOneFrame_OnlyCopy(event.inputImageBitmap, event.outputImageBitmap);
+  } else if (currentFunction == "blur") {
+    processOneFrame_OpenCV_Erode(event.inputImageBitmap, event.outputImageBitmap, currentFunction);
+  } else if (currentFunction == "erode") {
+    processOneFrame_OpenCV_Erode(event.inputImageBitmap, event.outputImageBitmap, currentFunction);
+  } else if (currentFunction == "threshold") {threshold
+    processOneFrame_OpenCV_Erode(event.inputImageBitmap, event.outputImageBitmap, currentFunction);
+  } else if (currentFunction == "invert") {
+    processOneFrame_Invert(event.inputImageBitmap, event.outputImageBitmap);
+  } else if (currentFunction == "gray") {
+    processOneFrame_YUV2Gray(event.inputImageBitmap, event.outputImageBitmap);
+  }
 }

@@ -6,22 +6,45 @@
 </head>
 <body>
 <div id="container";style="overflow:hidden;width:2000px">
-    <div id="inner" style="overflow:hidden;width:2000px">
-        <div style="float:left;margin:10px;">
-            <input type="submit" id="playButton" class="buttonStyle" value="Play"></input>
-        </div>
-        <div style="float:left;margin:10px;">
-            <input type="submit" id="stopButton" class="buttonStyle" value="Stop"></input>
-        </div>
+  <div data-role="fieldcontain" id="fieldcontain" style="overflow:hidden;width:500px">
+    <fieldset data-role="controlgroup" data-type="horizontal" data-role="fieldcontain">
+      <legend>Choose a demo function:</legend>
+
+      <input type="radio" name="demo-functions" id="demo-copy" value="copy"/>
+      <label for="demo-copy">Just copy</label>
+
+      <input type="radio" name="demo-functions" id="demo-blur" value="blur"/>
+      <label for="demo-blur">Blur</label>
+
+      <input type="radio" name="demo-functions" id="demo-erode" value="erode"/>
+      <label for="demo-erode">Erode</label>
+
+      <input type="radio" name="demo-functions" id="demo-threshold" value="threshold"/>
+      <label for="demo-threshold">Threshold</label>
+
+      <input type="radio" name="demo-functions" id="demo-invert" value="invert"/>
+      <label for="demo-invert">Invert</label>
+
+      <input type="radio" name="demo-functions" id="demo-gray" value="gray"/>
+      <label for="demo-gray">To Gray</label>
+    </fieldset>
+  </div>
+  <div id="inner" style="overflow:hidden;width:2000px">
+    <div style="float:left;margin:10px;">
+      <input type="submit" id="playButton" class="buttonStyle" value="Play"></input>
     </div>
-    <div id="inner" style="overflow:hidden;width:2000px">
-        <div style="float:left;margin:10px;">
-            <video id="webcam"></video>
-        </div>
-        <div style="float:left;margin:10px;">
-            <video id="result"></video>
-        </div>
+    <div style="float:left;margin:10px;">
+      <input type="submit" id="stopButton" class="buttonStyle" value="Stop"></input>
     </div>
+  </div>
+  <div id="inner" style="overflow:hidden;width:2000px">
+    <div style="float:left;margin:10px;">
+      <video id="webcam"></video>
+    </div>
+    <div style="float:left;margin:10px;">
+      <video id="result"></video>
+    </div>
+  </div>
 </div>
 </body>
 
@@ -34,6 +57,56 @@ var localMediaStream;
 var playButton = document.getElementById('playButton');
 var stopButton = document.getElementById('stopButton');
 var controlWorker;
+
+// setup the radio button listeners
+var currentDemoFunction = "";
+document.getElementById('demo-copy').onclick = function() {
+  console.log("Run copy......");
+  controlWorker.postMessage({"type":"set_function", "function":getCurrentDeomFunction()});
+};
+
+document.getElementById('demo-blur').onclick = function() {
+  console.log("Run blur......");
+  controlWorker.postMessage({"type":"set_function", "function":getCurrentDeomFunction()});
+};
+
+document.getElementById('demo-erode').onclick = function() {
+  console.log("Run erode......");
+  controlWorker.postMessage({"type":"set_function", "function":getCurrentDeomFunction()});
+};
+
+document.getElementById('demo-threshold').onclick = function() {
+  console.log("Run threshold......");
+  controlWorker.postMessage({"type":"set_function", "function":getCurrentDeomFunction()});
+};
+
+document.getElementById('demo-invert').onclick = function() {
+  console.log("Run invert......");
+  controlWorker.postMessage({"type":"set_function", "function":getCurrentDeomFunction()});
+};
+
+document.getElementById('demo-gray').onclick = function() {
+  console.log("Run gray......");
+  controlWorker.postMessage({"type":"set_function", "function":getCurrentDeomFunction()});
+};
+
+function getCurrentDeomFunction() {
+  if (document.getElementById('demo-copy').checked) {
+    return document.getElementById('demo-copy').value;
+  } else if (document.getElementById('demo-blur').checked) {
+    return document.getElementById('demo-blur').value;
+  } else if (document.getElementById('demo-erode').checked) {
+    return document.getElementById('demo-erode').value;
+  } else if (document.getElementById('demo-threshold').checked) {
+    return document.getElementById('demo-threshold').value;
+  } else if (document.getElementById('demo-invert').checked) {
+    return document.getElementById('demo-invert').value;
+  } else if (document.getElementById('demo-gray').checked) {
+    return document.getElementById('demo-gray').value;
+  } else {
+    return document.getElementById('demo-copy').value;
+  }
+}
 
 //Checking camera
 function hasGetUserMedia() {
@@ -82,6 +155,8 @@ function initControlWorker() {
 	controlWorker = new VideoWorker("processor.js");
 
 	if (!!controlWorker) {
+    controlWorker.postMessage({"type":"set_function", "function":getCurrentDeomFunction()});
+
 		var tracks = localMediaStream.getTracks();
 		controlWorker.postMessage({"type":"set_trackid", "id":tracks[0].id});
     var newtrack = tracks[0].addWorkerProcessor(controlWorker, {});
