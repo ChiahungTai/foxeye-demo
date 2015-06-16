@@ -21,6 +21,15 @@ onmessage = function(event) {
 				postMessage({"type":event.data.type,
 										 "bitmap":event.data.bitmap});
 				isProcessing = false;
+			} else if (event.data.type == "display_face") {
+				// send back to the main thread
+				postMessage({"type":event.data.type,
+										 "bitmap":event.data.bitmap,
+										 "x":event.data.x,
+										 "y":event.data.y,
+										 "w":event.data.w,
+										 "h":event.data.h});
+				isProcessing = false;
 			} else if (event.data.type == "display_arraybuffer") {
 				postMessage({"type":event.data.type,
 										 "buffer":event.data.buffer,

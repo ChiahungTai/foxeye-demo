@@ -12,7 +12,7 @@ facedetection: ./bin/facedetection.bc
 	$(OPENCV_INSTALL_DIR)/lib/libopencv_features2d.so \
 	$(OPENCV_INSTALL_DIR)/lib/libopencv_video.so \
 	$(OPENCV_INSTALL_DIR)/lib/libopencv_objdetect.so \
-	-s EXPORTED_FUNCTIONS="['_kaku_face_detection_demo']" \
+	-s EXPORTED_FUNCTIONS="['_kaku_face_detection_demo', '_kaku_face_detection_get_faceX', '_kaku_face_detection_get_faceY', '_kaku_face_detection_get_faceW', '_kaku_face_detection_get_faceH']" \
 	-s TOTAL_MEMORY=46777216 \
 	-O3 \
 	-s PRECISE_F32=1 \

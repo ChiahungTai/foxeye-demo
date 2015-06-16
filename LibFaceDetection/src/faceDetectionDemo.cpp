@@ -7,6 +7,10 @@ namespace kaku {
 
 /** Global variables */
 static bool isInitialized = false;
+static int faceX = 0;
+static int faceY = 0;
+static int faceW = 0;
+static int faceH = 0;
 cv::String const face_cascade_name = "lbpcascade_frontalface.xml";
 cv::String const eyes_cascade_name = "haarcascade_eye_tree_eyeglasses.xml";
 cv::CascadeClassifier face_cascade;
@@ -27,6 +31,13 @@ static void detectAndDisplay(cv::Mat frame, double scaleFactor, int minWidth, in
     clock_t c = clock();
     face_cascade.detectMultiScale( frame_gray, faces, scaleFactor, 3, 0, cv::Size(minWidth, minHeight) );
     printf("detectMultiScale(): #faces = %u, %f ms\n", faces.size(), ((float)(clock() - c)*1000.0f/CLOCKS_PER_SEC));
+
+    if (!faces.empty()) {
+      faceX = faces[0].x;
+      faceY = faces[0].y;
+      faceW = faces[0].width;
+      faceH = faces[0].height;
+    }
 
     for( size_t i = 0; i < faces.size(); i++ )
     {
@@ -65,6 +76,19 @@ kaku_face_detection_demo(void const *array, int width, int height, double scaleF
 	detectAndDisplay(image, scaleFactor, minWidth, minHeight);
 	return 0;
 }
+
+extern int
+kaku_face_detection_get_faceX() { return faceX; }
+
+extern int
+kaku_face_detection_get_faceY() { return faceY; }
+
+extern int
+kaku_face_detection_get_faceW() { return faceW; }
+
+extern int
+kaku_face_detection_get_faceH() { return faceH; }
+
 
 }
 }

@@ -57,6 +57,7 @@ var fpsInfo       = document.getElementById('fpsInfo');
 var dropRateInfo  = document.getElementById('dropRateInfo');
 var qrcodeInfo    = document.getElementById('qrcodeInfo');
 var controlWorker;
+var hatImageBitmap;
 
 // setup the radio button listeners
 var currentDemoFunction = "";
@@ -121,7 +122,31 @@ function onFail(e) {
     console.log('Cannot access WebCAM!', e);
 }
 
+function drawCircle(ctx, centerX, centerY, radius, color) {
+  ctx.beginPath();
+  ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI, false);
+  ctx.fillStyle = color;
+  ctx.fill();
+}
+
+function drawHat(ctx, faceX, faceY, faceW, faceH) {
+  ctx.drawImage(hatImageBitmap, faceX, faceY - (hatImageBitmap.height * 0.7), hatImageBitmap.width, hatImageBitmap.height);
+}
+
+function prepareHatImage() {
+  var tempImage = document.createElement("img");
+  tempImage.src = "./hat.png";
+  tempImage.onload = function() {
+    console.log("tempImage.onloaded");
+    var p = createImageBitmap(tempImage);
+    p.then(function(bitmap) {
+      hatImageBitmap = bitmap;
+    });
+  }
+}
+
 function initControlWorker() {
+  prepareHatImage();
 	controlWorker = new VideoWorker("control_worker.js");
 
 	if (!!controlWorker) {
@@ -140,6 +165,21 @@ function initControlWorker() {
       }
       // show result
       ctxResult.drawImage(event.data.bitmap, 0, 0);
+    } else if (event.data.type == "display_face") {
+      if (!isCanvasInitialized) {
+        canvasResult.width = event.data.bitmap.width;
+        canvasResult.height = event.data.bitmap.height;
+        isCanvasInitialized = true;
+      }
+      // show result
+      ctxResult.drawImage(event.data.bitmap, 0, 0);
+
+      // draw extra information
+      if (!!hatImageBitmap) {
+        // ctxResult.drawImage(hatImageBitmap, event.data.x, event.data.y, event.data.w, event.data.h);
+        drawHat(ctxResult, event.data.x, event.data.y, event.data.w, event.data.h);
+      }
+
     } else if (event.data.type == "display_arraybuffer") {
       if (!isCanvasInitialized) {
         canvasResult.width = event.data.width;
