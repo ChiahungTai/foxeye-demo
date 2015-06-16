@@ -8,23 +8,23 @@ function error(e) {
 }
 
 function initQRCode() {
-	importScripts("../../jsqrcode/src/grid.js");
-  importScripts("../../jsqrcode/src/version.js");
-	importScripts("../../jsqrcode/src/detector.js");
-	importScripts("../../jsqrcode/src/formatinf.js");
-	importScripts("../../jsqrcode/src/errorlevel.js");
-	importScripts("../../jsqrcode/src/bitmat.js");
-	importScripts("../../jsqrcode/src/datablock.js");
-	importScripts("../../jsqrcode/src/bmparser.js");
-	importScripts("../../jsqrcode/src/datamask.js");
-	importScripts("../../jsqrcode/src/rsdecoder.js");
-	importScripts("../../jsqrcode/src/gf256poly.js");
-	importScripts("../../jsqrcode/src/gf256.js");
-	importScripts("../../jsqrcode/src/decoder.js");
-	importScripts("../../jsqrcode/src/qrcode.js");
-	importScripts("../../jsqrcode/src/findpat.js");
-	importScripts("../../jsqrcode/src/alignpat.js");
-	importScripts("../../jsqrcode/src/databr.js");
+	importScripts("../jsqrcode/src/grid.js");
+  importScripts("../jsqrcode/src/version.js");
+	importScripts("../jsqrcode/src/detector.js");
+	importScripts("../jsqrcode/src/formatinf.js");
+	importScripts("../jsqrcode/src/errorlevel.js");
+	importScripts("../jsqrcode/src/bitmat.js");
+	importScripts("../jsqrcode/src/datablock.js");
+	importScripts("../jsqrcode/src/bmparser.js");
+	importScripts("../jsqrcode/src/datamask.js");
+	importScripts("../jsqrcode/src/rsdecoder.js");
+	importScripts("../jsqrcode/src/gf256poly.js");
+	importScripts("../jsqrcode/src/gf256.js");
+	importScripts("../jsqrcode/src/decoder.js");
+	importScripts("../jsqrcode/src/qrcode.js");
+	importScripts("../jsqrcode/src/findpat.js");
+	importScripts("../jsqrcode/src/alignpat.js");
+	importScripts("../jsqrcode/src/databr.js");
 
   // init qrcode module
   qrcode.callback = read;
@@ -56,7 +56,7 @@ function processOneFrame_RGBA_ArrayBuffer(buffer, offset, length, width, height)
 }
 
 onmessage = function(event) {
-  
+
   if (event.data.type == "init") {
     console.log("init_jsqrcode");
     initQRCode();

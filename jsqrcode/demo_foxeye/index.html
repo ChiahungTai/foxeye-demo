@@ -1,0 +1,131 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Video Workers on MediaStreamTrack</title>
+</head>
+<body>
+<div id="result"></div> 
+<div id="container";overflow:hidden;width:650px>
+    <div id="inner" style="overflow:hidden;width:650px">
+        <div style="float:left;margin:10px;">
+            <input type="submit" id="playButton" class="buttonStyle" value="Play"></input>
+        </div>
+        <div style="float:left;margin:10px;">
+            <input type="submit" id="stopButton" class="buttonStyle" value="Stop"></input>
+        </div>
+    </div>            
+    <div id="inner" style="overflow:hidden;width:650px">
+        <div style="float:left;margin:10px;">
+            <video id="webcam"></video>
+        </div>
+        <div style="float:left;margin:10px;">
+            <canvas id="result"></canvas>
+        </div>
+    </div>
+</div>    
+</body>
+
+<script type="text/javascript">
+var video = document.getElementById('webcam');
+var isContinuous = true;
+var localMediaStream;
+var playButton = document.getElementById('playButton');
+var stopButton = document.getElementById('stopButton');
+var worker;
+
+//Checking camera
+function hasGetUserMedia() {
+    return !!(navigator.getUserMedia || 
+              navigator.webkitGetUserMedia || 
+              navigator.mozGetUserMedia || 
+              navigator.msGetUserMedia);
+}
+
+if (hasGetUserMedia()) {
+    console.log("Camera OK");
+} else {
+    alert("Invalid!");
+}
+
+navigator.getUserMedia = navigator.getUserMedia || 
+                         navigator.webkitGetUserMedia || 
+                         navigator.mozGetUserMedia || 
+                         navigator.msGetUserMedia;
+
+function onSuccess(stream) {
+    localMediaStream = stream;
+    video.src = window.URL.createObjectURL(localMediaStream);
+    video.onloadeddata = initCanvases();               
+    video.play();
+}
+
+function onFail(e) {
+    console.log('Cannot access WebCAM!', e);
+}
+
+function initWorker() {
+	worker = new VideoWorker("scan.js");
+
+	if (!!worker) {
+		var tracks = localMediaStream.getTracks();
+		worker.postMessage({"type":"set_trackid", "id":tracks[0].id});
+		tracks[0].addWorkerMonitor(worker, {});
+	}
+
+    function htmlEntities(str) {
+        return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+	worker.onmessage = function(event) {
+		if (event.data.type == "display_arraybuffer") {
+			var bufferView = new Uint8ClampedArray(event.data.buffer, 0, event.data.bufferLength);
+			var imageData = new ImageData(bufferView, event.data.imageWidth, event.data.imageHeight);
+		    // show result
+    		ctxResult.putImageData(imageData, 0, 0);
+		} else if (event.data.type == "display_qrcode") {
+
+            var a = event.data.qrcode;
+
+            console.log(a);
+
+            var html="<br>";
+            if(a.indexOf("http://") === 0 || a.indexOf("https://") === 0)
+                html+="<a target='_blank' href='"+a+"'>"+a+"</a><br>";
+            html+="<b>"+htmlEntities(a)+"</b><br><br>";
+
+            document.getElementById("result").innerHTML = html;
+        }
+	};
+}
+
+function initCanvases() {
+    console.log("video.videoWidth = " + video.videoWidth);
+    console.log("video.videoHeight = " + video.videoHeight);
+    console.log("video.width = " + video.width);
+    console.log("video.height = " + video.height);
+
+    if (video.videoWidth == 0 ||  video.videoHeight == 0) {
+        requestAnimationFrame(initCanvases);
+    }
+    else {
+        width  = video.videoWidth;
+        height = video.videoHeight;
+        video.setAttribute('width', width);
+        video.setAttribute('height', height);
+        isContinuous = true;
+        initWorker();
+    }
+}
+
+playButton.onclick = function() {
+    navigator.getUserMedia({video: true, audio: false} , onSuccess, onFail);
+}
+
+stopButton.onclick = function() {
+    isContinuous = false;
+    video.pause();
+    localMediaStream.stop();
+}
+</script>
+</html>

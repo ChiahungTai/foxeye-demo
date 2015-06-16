@@ -1,0 +1,155 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Video Workers on MediaStreamTrack</title>
+</head>
+<body>
+<div id="container";overflow:hidden;width:650px>
+    <div id="inner" style="overflow:hidden;width:650px">
+        <div style="float:left;margin:10px;">
+            <input type="submit" id="playButton" class="buttonStyle" value="Play"></input>
+        </div>
+        <div style="float:left;margin:10px;">
+            <input type="submit" id="stopButton" class="buttonStyle" value="Stop"></input>
+        </div>
+    </div>            
+    <div id="inner" style="overflow:hidden;width:650px">
+        <div style="float:left;margin:10px;">
+            <video id="webcam"></video>
+        </div>
+        <div style="float:left;margin:10px;">
+            <canvas id="qr-canvas"></canvas>
+        </div>
+    </div>   
+    <div id="result"></div> 
+</div>    
+</body>
+
+<script type="text/javascript" src="../src/grid.js"></script>
+<script type="text/javascript" src="../src/version.js"></script>
+<script type="text/javascript" src="../src/detector.js"></script>
+<script type="text/javascript" src="../src/formatinf.js"></script>
+<script type="text/javascript" src="../src/errorlevel.js"></script>
+<script type="text/javascript" src="../src/bitmat.js"></script>
+<script type="text/javascript" src="../src/datablock.js"></script>
+<script type="text/javascript" src="../src/bmparser.js"></script>
+<script type="text/javascript" src="../src/datamask.js"></script>
+<script type="text/javascript" src="../src/rsdecoder.js"></script>
+<script type="text/javascript" src="../src/gf256poly.js"></script>
+<script type="text/javascript" src="../src/gf256.js"></script>
+<script type="text/javascript" src="../src/decoder.js"></script>
+<script type="text/javascript" src="../src/qrcode.js"></script>
+<script type="text/javascript" src="../src/findpat.js"></script>
+<script type="text/javascript" src="../src/alignpat.js"></script>
+<script type="text/javascript" src="../src/databr.js"></script>
+<script type="text/javascript">
+var canvasResult = document.getElementById('qr-canvas');
+var ctxResult = canvasResult.getContext('2d');;
+var video = document.getElementById('webcam');
+var isContinuous = true;
+var localMediaStream;
+var playButton = document.getElementById('playButton');
+var stopButton = document.getElementById('stopButton');
+
+//Checking camera
+function hasGetUserMedia() {
+    return !!(navigator.getUserMedia || 
+              navigator.webkitGetUserMedia || 
+              navigator.mozGetUserMedia || 
+              navigator.msGetUserMedia);
+}
+
+if (hasGetUserMedia()) {
+    console.log("Camera OK");
+} else {
+    alert("Invalid!");
+}
+
+navigator.getUserMedia = navigator.getUserMedia || 
+                         navigator.webkitGetUserMedia || 
+                         navigator.mozGetUserMedia || 
+                         navigator.msGetUserMedia;
+
+function onSuccess(stream) {
+    localMediaStream = stream;
+    video.src = window.URL.createObjectURL(localMediaStream);
+    video.onloadeddata = initCanvases();               
+    video.play();
+}
+
+function onFail(e) {
+    console.log('Cannot access WebCAM!', e);
+}
+
+function processOneFrame() {
+    // scan QR code
+    try {
+        // draw video to canvas
+        ctxResult.drawImage(video, 0, 0);
+    
+        try {
+            qrcode.decode();
+            setTimeout(processOneFrame, 50);
+        }
+        catch(e) {       
+            console.log(e);
+            setTimeout(processOneFrame, 50);
+        };
+    }
+    catch(e) {       
+            console.log(e);
+            setTimeout(processOneFrame, 50);
+    };
+}
+
+function htmlEntities(str) {
+    return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function read(a)
+{
+    var html="<br>";
+    if(a.indexOf("http://") === 0 || a.indexOf("https://") === 0)
+        html+="<a target='_blank' href='"+a+"'>"+a+"</a><br>";
+    html+="<b>"+htmlEntities(a)+"</b><br><br>";
+    document.getElementById("result").innerHTML=html;
+}   
+
+function initCanvases() {
+    console.log("video.videoWidth = " + video.videoWidth);
+    console.log("video.videoHeight = " + video.videoHeight);
+    console.log("video.width = " + video.width);
+    console.log("video.height = " + video.height);
+
+    if (video.videoWidth == 0 ||  video.videoHeight == 0) {
+        requestAnimationFrame(initCanvases);
+    }
+    else {
+        width  = video.videoWidth;
+        height = video.videoHeight;
+        video.setAttribute('width', width);
+        video.setAttribute('height', height);      
+        canvasResult.setAttribute('width', width);
+        canvasResult.setAttribute('height', height);
+
+        isContinuous = true;
+
+        // init qrcode module
+        qrcode.callback = read;
+
+        processOneFrame();
+    }
+}
+
+playButton.onclick = function() {
+    navigator.getUserMedia({video: true, audio: false} , onSuccess, onFail);
+}
+
+stopButton.onclick = function() {
+    isContinuous = false;
+    video.pause();
+    localMediaStream.stop();
+}
+</script>
+</html>
