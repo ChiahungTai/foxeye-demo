@@ -42,13 +42,14 @@ function processOneFrame_RGBA(bitmap) {
   var bitmapBufferLength = bitmap.mappedDataLength(bitmapFormat);;
   var bitmapBuffer = new ArrayBuffer(bitmapBufferLength);
   var bitmapBufferView = new Uint8ClampedArray(bitmapBuffer, 0, bitmapBufferLength);
-  var bitmapPixelLayout = bitmap.mapDataInto(bitmapFormat, bitmapBuffer, 0, bitmapBufferLength);
-
-  try {
-    qrcode.decodeRGBAArrayBuffer(bitmapBuffer, 0, bitmapBufferLength, bitmap.width, bitmap.height);
-  } catch(e) {
-    error(e);
-  }
+  var promise = bitmap.mapDataInto(bitmapFormat, bitmapBuffer, 0, bitmapBufferLength);
+  promise.then(function(bitmapPixelLayout){
+	try {
+	  qrcode.decodeRGBAArrayBuffer(bitmapBuffer, 0, bitmapBufferLength, bitmap.width, bitmap.height);
+	} catch(e) {
+	  error(e);
+    }  
+  });	
 }
 
 onmessage = function(event) {

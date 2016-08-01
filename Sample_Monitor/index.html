@@ -2,7 +2,7 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <title>Video Workers on MediaStreamTrack</title>
+  <title>VideoMonitor Demo</title>
 </head>
 <body>
 <div id="container" style="overflow:hidden;width:2000px">
@@ -58,6 +58,7 @@ var dropRateInfo  = document.getElementById('dropRateInfo');
 var qrcodeInfo    = document.getElementById('qrcodeInfo');
 var controlWorker;
 var hatImageBitmap;
+var videoMonitor;
 
 // setup the radio button listeners
 var currentDemoFunction = "";
@@ -69,7 +70,7 @@ document.getElementById('demo-qrcode').onclick = function() {
   console.log("Run QR code scannar......");
 };
 
-function getCurrentDeomFunction() {
+function getCurrentDemoFunction() {
   if (document.getElementById('demo-face').checked) {
     return document.getElementById('demo-face').value;
   } else if (document.getElementById('demo-qrcode').checked) {
@@ -147,13 +148,15 @@ function prepareHatImage() {
 
 function initControlWorker() {
   prepareHatImage();
-	controlWorker = new VideoWorker("control_worker.js");
+	controlWorker = new Worker("control_worker.js");
+	videoMonitor = new VideoMonitor();
 
-	if (!!controlWorker) {
+	if (!!videoMonitor) {
 		var tracks = localMediaStream.getTracks();
 		controlWorker.postMessage({"type":"set_trackid", "id":tracks[0].id});
-    controlWorker.postMessage({"type":"init_process_worker", "function":getCurrentDeomFunction()});
-    tracks[0].addWorkerMonitor(controlWorker, {});
+    	controlWorker.postMessage({"type":"init_process_worker", "function":getCurrentDemoFunction()});
+    	tracks[0].addVideoMonitor(videoMonitor);
+        controlWorker.postMessage({"type":"pass_monitor", "monitor": videoMonitor}, [videoMonitor]);
 	}
 
 	controlWorker.onmessage = function(event) {

@@ -44,6 +44,7 @@ function processOneFrame_RGBA(bitmap) {
     postMessage({"type":"operation_finished_without_result"});
     return;
   }
+	console.log("processOneFrame_RGBA.\n");
 
   // force to take RGBA format data
   // handle the convertion in the Gecko
@@ -53,26 +54,29 @@ function processOneFrame_RGBA(bitmap) {
   if (!isFaceModuleInitialized) {
     initFaceModule(bitmap.width, bitmap.height, bitmapBufferLength);
   }
-
-  var bitmapPixelLayout = bitmap.mapDataInto(bitmapFormat, Module.HEAPU8.buffer, bitmapBufferOffset, bitmapBufferLength);
-
-  try {
-    detect_face_and_draw(bitmapBufferOffset, bitmap.width, bitmap.height, scaleFactor, minFaceWidth, minFaceHeight);
-  } catch(e) {
-    console.log(e, e.stack);
-    postMessage({"type":"operation_finished_without_result"});
-  }
-
+  
+  // Map the bitmap's data into the buffer created in the previous step.
+  var promise = bitmap.mapDataInto(bitmapFormat, Module.HEAPU8.buffer, bitmapBufferOffset, bitmapBufferLength);
+  promise.then(function(bitmapPixelLayout) {
+	console.log("mapDataInto success!");
+    try {
+   	  detect_face_and_draw(bitmapBufferOffset, bitmap.width, bitmap.height, scaleFactor, minFaceWidth, minFaceHeight);
+	} catch(e) {
+  	  console.log(e, e.stack);
+	  postMessage({"type":"operation_finished_without_result"});
+	}
   // set the result back to the ImageBitmap
-  bitmap.setDataFrom("RGBA32", Module.HEAPU8.buffer, bitmapBufferOffset, bitmapBufferLength,
-                     bitmap.width, bitmap.height, bitmapPixelLayout.channels[0].stride);
-
-  postMessage({"type":"display_face",
-               "bitmap":bitmap,
-               "x":detect_face_getX(),
-               "y":detect_face_getY(),
-               "w":detect_face_getW(),
-               "h":detect_face_getH()});
+// 	  bitmap.setDataFrom("RGBA32", Module.HEAPU8.buffer, bitmapBufferOffset, bitmapBufferLength,
+// 						 bitmap.width, bitmap.height, bitmapPixelLayout.channels[0].stride);
+// 
+	postMessage({"type":"display_face",
+	   	         "bitmap":bitmap,
+				 "x":detect_face_getX(),
+				 "y":detect_face_getY(),
+				 "w":detect_face_getW(),
+				 "h":detect_face_getH()});
+               
+  });
 }
 
 onmessage = function(event) {
