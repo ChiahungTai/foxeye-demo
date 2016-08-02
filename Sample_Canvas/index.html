@@ -246,11 +246,39 @@ var veryStartTime;
 var previousTime;
 var currentTime;
 var frameNum = 0;
+var fps;
+var endTime;
+
+
+var drawImageS = 0;
+var drawImageE = 0;
+var drawImageT = 0;
+
+var getImageDataS = 0;
+var getImageDataE = 0;
+var getImageDataT = 0;
+
+var copyBufferS = 0;
+var copyBufferE = 0;
+var copyBufferT = 0;
+
+var putImageDataS = 0;
+var putImageDataE = 0;
+var putImageDataT = 0;
+
+function showStatistics() {
+  console.log("drawImage(): " + (drawImageT / frameNum));
+  console.log("getImageData(): " + (getImageDataT / frameNum));
+  console.log("copyBuffer(): " + (copyBufferT / frameNum));
+  console.log("putImageData(): " + (putImageDataT / frameNum));
+}
 
 function processOneFrame() {
 
   currentTime = new Date().getTime();
-
+//  console.log("time = " + (currentTime - previousTime));
+  previousTime = currentTime;
+  
   if (!isVeryStartTimeInitialized) {
     veryStartTime = currentTime;
     isVeryStartTimeInitialized = true;
@@ -258,34 +286,53 @@ function processOneFrame() {
   
   frameNum += 1;
   if (frameNum % 30 == 1) {
-    console.log("FPS = " + 1000.0 * (frameNum) / (currentTime - veryStartTime));
+    fps = 1000.0 * (frameNum) / (currentTime - veryStartTime);
+    fpsInfo.textContent = "FPS = " + fps;
+//	showStatistics();
   }
-    console.log("FPS = " + 1000.0 * (frameNum) / (currentTime - veryStartTime));
 
   if (!isASMRuntimeInitialized) {
 	requestAnimationFrame(processOneFrame);
   }
 
+//  drawImageS = new Date().getTime();
   ctxOperate.drawImage(video, 0, 0, video.width, video.height);
+//  drawImageE = new Date().getTime();
+//  drawImageT += (drawImageE - drawImageS);
+  
+//  getImageDataS = new Date().getTime();
   var imageData = ctxOperate.getImageData(0, 0, video.width, video.height);
+//   getImageDataE = new Date().getTime();
+//   getImageDataT += (getImageDataE - getImageDataS);
+
   if (!isFaceModuleInitialized) {
     initFaceModule(imageData.width, imageData.height, imageData.data.length);
   }
+
+//   copyBufferS = new Date().getTime();
   Module.HEAPU8.set(imageData.data, bitmapBufferOffset);
+//   copyBufferE = new Date().getTime();
+//   copyBufferT += (copyBufferE - copyBufferS);
+
   detect_face_and_draw(bitmapBufferOffset, imageData.width, imageData.height, scaleFactor, minFaceWidth, minFaceHeight);
   
-  console.log("Get face x:" +detect_face_getX()+
-			  "y:"+detect_face_getY()+
-			  "w:"+detect_face_getW()+
-			  "h:"+detect_face_getH());
+//   console.log("Get face x:" +detect_face_getX()+
+// 			  "y:"+detect_face_getY()+
+// 			  "w:"+detect_face_getW()+
+// 			  "h:"+detect_face_getH());
   // show result
+//   putImageDataS = new Date().getTime();
   ctxResult.putImageData(imageData, 0, 0);
-//  ctxResult.drawImage(event.data.bitmap, 0, 0);
+//   putImageDataE = new Date().getTime();
+//   putImageDataT += (putImageDataE - putImageDataS);
 
   // draw extra information
   if (!!hatImageBitmap) {
 	drawHat(ctxResult, detect_face_getX(), detect_face_getY(), detect_face_getW(), detect_face_getH());
-  }  
+  }
+//   endTime = new Date().getTime();
+//   console.log("process time = " + (endTime - currentTime));
+
   // ask for next frame
   if (isContinuous) {
     requestAnimationFrame(processOneFrame);
