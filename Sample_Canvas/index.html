@@ -1,0 +1,354 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Canvas+rAF Demo</title>
+</head>
+<body>
+<div id="container" style="overflow:hidden;width:2000px">
+  <div data-role="fieldcontain" id="fieldcontain" style="overflow:hidden;width:500px">
+    <fieldset data-role="controlgroup" data-type="horizontal" data-role="fieldcontain">
+      <legend>Choose a demo function:</legend>
+
+      <input type="radio" name="demo-functions" id="demo-face" value="face" defaultChecked/>
+      <label for="demo-face">Face detection</label>
+
+      <input type="radio" name="demo-functions" id="demo-qrcode" value="qrcode"/>
+      <label for="demo-qrcode">QR code scannar</label>
+    </fieldset>
+  </div>
+  <div id="inner" style="overflow:hidden;width:2000px">
+    <div style="float:left;margin:10px;">
+      <input type="submit" id="playButton" class="buttonStyle" value="Play"></input>
+    </div>
+    <div style="float:left;margin:10px;">
+      <input type="submit" id="stopButton" class="buttonStyle" value="Stop"></input>
+    </div>
+  </div>
+  <div id="inner" style="overflow:hidden;width:2000px">
+    <div id="fpsInfo">
+    </div>
+    <div id="dropRateInfo">
+    </div>
+    <div id="qrcodeInfo">
+    </div>
+  </div>
+  <div id="inner" style="overflow:hidden;width:2000px">
+    <div style="float:left;margin:10px;">
+      <video id="webcam"></video>
+    </div>
+    <div style="float:left;margin:10px;">
+      <canvas id="result"></canvas>
+    </div>
+  </div>
+</div>
+</body>
+<script src="facedetection.js"></script>
+
+<script type="text/javascript">
+
+Module.onRuntimeInitialized = function() {
+  console.log("onRuntimeInitialized() !!!");
+
+  detect_face_and_draw = Module.cwrap('kaku_face_detection_demo', 'number', ['number','number', 'number', 'number', 'number', 'number']);
+  detect_face_getX = Module.cwrap('kaku_face_detection_get_faceX', 'number', []);
+  detect_face_getY = Module.cwrap('kaku_face_detection_get_faceY', 'number', []);
+  detect_face_getW = Module.cwrap('kaku_face_detection_get_faceW', 'number', []);
+  detect_face_getH = Module.cwrap('kaku_face_detection_get_faceH', 'number', []);
+
+  isASMRuntimeInitialized = true;
+};
+
+
+var detect_face_and_draw;
+var detect_face_getX;
+var detect_face_getY;
+var detect_face_getW;
+var detect_face_getH;
+var bitmapBufferOffset;
+var minFaceWidth;
+var minFaceHeight;
+var scaleFactor;
+
+var isFaceModuleInitialized = false;
+var isASMRuntimeInitialized = false;
+
+function initFaceModule(imageWidth, imageHeight, bitmapBufferLength) {
+  bitmapBufferOffset = Module._malloc(bitmapBufferLength);
+  minFaceWidth  = Math.min(imageWidth, imageHeight) / 4;
+  minFaceHeight = Math.min(imageWidth, imageHeight) / 4;
+  scaleFactor = 1.1;
+
+  isFaceModuleInitialized = true;
+}
+// 
+// function initializeASM() {
+//   importScripts("facedetection.js");
+// }
+// 
+// initializeASM();
+
+var showWebCamVideo = true;
+var canvasOperate = document.createElement('canvas');
+var ctxOperate = canvasOperate.getContext('2d');
+var video = document.getElementById('webcam');
+var isCanvasInitialized = false;
+var canvasResult = document.getElementById('result');
+var ctxResult = canvasResult.getContext('2d');;
+var localMediaStream;
+var playButton    = document.getElementById('playButton');
+var stopButton    = document.getElementById('stopButton');
+var fpsInfo       = document.getElementById('fpsInfo');
+var dropRateInfo  = document.getElementById('dropRateInfo');
+var qrcodeInfo    = document.getElementById('qrcodeInfo');
+var controlWorker;
+var hatImageBitmap;
+var videoMonitor;
+
+var isOperationInitialized = false;
+var operationArrayBuffer;
+var operationTypedArray;
+var operationImageData;
+
+function drawHat(ctx, faceX, faceY, faceW, faceH) {
+  ctx.drawImage(hatImageBitmap, faceX, faceY - (hatImageBitmap.height * 0.7), hatImageBitmap.width, hatImageBitmap.height);
+}
+
+function prepareHatImage() {
+  var tempImage = document.createElement("img");
+  tempImage.src = "./hat.png";
+  tempImage.onload = function() {
+    console.log("tempImage.onloaded");
+    var p = createImageBitmap(tempImage);
+    p.then(function(bitmap) {
+      hatImageBitmap = bitmap;
+    });
+  }
+}
+
+  prepareHatImage();
+
+// setup the radio button listeners
+var currentDemoFunction = "";
+document.getElementById('demo-face').onclick = function() {
+  console.log("Run Face detection......");
+};
+
+document.getElementById('demo-qrcode').onclick = function() {
+  console.log("Run QR code scannar......");
+};
+
+function getCurrentDemoFunction() {
+  if (document.getElementById('demo-face').checked) {
+    return document.getElementById('demo-face').value;
+  } else if (document.getElementById('demo-qrcode').checked) {
+    return document.getElementById('demo-qrcode').value;
+  } else {
+    return document.getElementById('demo-face').value;
+  }
+}
+
+//Checking camera
+function hasGetUserMedia() {
+    return !!(navigator.getUserMedia ||
+              navigator.webkitGetUserMedia ||
+              navigator.mozGetUserMedia ||
+              navigator.msGetUserMedia);
+}
+
+if (hasGetUserMedia()) {
+    console.log("Camera OK");
+} else {
+    alert("Invalid!");
+}
+
+navigator.getUserMedia = navigator.getUserMedia ||
+                         navigator.webkitGetUserMedia ||
+                         navigator.mozGetUserMedia ||
+                         navigator.msGetUserMedia;
+
+playButton.onclick = function() {
+    navigator.getUserMedia({video: true, audio: false} , onSuccess, onFail);
+}
+
+stopButton.onclick = function() {
+    isContinuous = false;
+    video.pause();
+    localMediaStream.stop();
+}
+
+function onSuccess(stream) {
+    localMediaStream = stream;
+//    initControlWorker();
+
+    if (showWebCamVideo) {
+        video.src = window.URL.createObjectURL(localMediaStream);
+        video.onloadeddata = initCanvases();
+        video.play();
+    }
+}
+
+function onFail(e) {
+    console.log('Cannot access WebCAM!', e);
+}
+
+function drawCircle(ctx, centerX, centerY, radius, color) {
+  ctx.beginPath();
+  ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI, false);
+  ctx.fillStyle = color;
+  ctx.fill();
+}
+
+function drawHat(ctx, faceX, faceY, faceW, faceH) {
+  ctx.drawImage(hatImageBitmap, faceX, faceY - (hatImageBitmap.height * 0.7), hatImageBitmap.width, hatImageBitmap.height);
+}
+
+function prepareHatImage() {
+  var tempImage = document.createElement("img");
+  tempImage.src = "./hat.png";
+  tempImage.onload = function() {
+    console.log("tempImage.onloaded");
+    var p = createImageBitmap(tempImage);
+    p.then(function(bitmap) {
+      hatImageBitmap = bitmap;
+    });
+  }
+}
+
+function initCanvases() {
+  console.log("video.videoWidth = " + video.videoWidth);
+  console.log("video.videoHeight = " + video.videoHeight);
+  console.log("video.width = " + video.width);
+  console.log("video.height = " + video.height);
+
+  if (video.videoWidth == 0 ||  video.videoHeight == 0) {
+    // still not able to init canvas now, wait for next frame.
+    requestAnimationFrame(initCanvases);
+  }
+  else {
+    width = video.videoWidth
+    height = video.videoHeight;
+    video.setAttribute('width', width);
+    video.setAttribute('height', height);
+    canvasOperate.setAttribute('width', width);
+    canvasOperate.setAttribute('height', height);
+    canvasResult.setAttribute('width', width);
+    canvasResult.setAttribute('height', height);
+
+    isContinuous = true;
+    requestAnimationFrame(processOneFrame);
+  }
+}
+
+
+var isVeryStartTimeInitialized = false;
+var veryStartTime;
+var previousTime;
+var currentTime;
+var frameNum = 0;
+
+function processOneFrame() {
+
+  currentTime = new Date().getTime();
+
+  if (!isVeryStartTimeInitialized) {
+    veryStartTime = currentTime;
+    isVeryStartTimeInitialized = true;
+  }
+  
+  frameNum += 1;
+  if (frameNum % 30 == 1) {
+    console.log("FPS = " + 1000.0 * (frameNum) / (currentTime - veryStartTime));
+  }
+    console.log("FPS = " + 1000.0 * (frameNum) / (currentTime - veryStartTime));
+
+  if (!isASMRuntimeInitialized) {
+	requestAnimationFrame(processOneFrame);
+  }
+
+  ctxOperate.drawImage(video, 0, 0, video.width, video.height);
+  var imageData = ctxOperate.getImageData(0, 0, video.width, video.height);
+  if (!isFaceModuleInitialized) {
+    initFaceModule(imageData.width, imageData.height, imageData.data.length);
+  }
+  Module.HEAPU8.set(imageData.data, bitmapBufferOffset);
+  detect_face_and_draw(bitmapBufferOffset, imageData.width, imageData.height, scaleFactor, minFaceWidth, minFaceHeight);
+  
+  console.log("Get face x:" +detect_face_getX()+
+			  "y:"+detect_face_getY()+
+			  "w:"+detect_face_getW()+
+			  "h:"+detect_face_getH());
+  // show result
+  ctxResult.putImageData(imageData, 0, 0);
+//  ctxResult.drawImage(event.data.bitmap, 0, 0);
+
+  // draw extra information
+  if (!!hatImageBitmap) {
+	drawHat(ctxResult, detect_face_getX(), detect_face_getY(), detect_face_getW(), detect_face_getH());
+  }  
+  // ask for next frame
+  if (isContinuous) {
+    requestAnimationFrame(processOneFrame);
+  } else {
+    return;
+  }
+}
+
+function initControlWorker() {
+  prepareHatImage();
+	controlWorker = new Worker("control_worker.js");
+	videoMonitor = new VideoMonitor();
+
+	if (!!videoMonitor) {
+		var tracks = localMediaStream.getTracks();
+		controlWorker.postMessage({"type":"set_trackid", "id":tracks[0].id});
+    	controlWorker.postMessage({"type":"init_process_worker", "function":getCurrentDemoFunction()});
+    	tracks[0].addVideoMonitor(videoMonitor);
+        controlWorker.postMessage({"type":"pass_monitor", "monitor": videoMonitor}, [videoMonitor]);
+	}
+
+	controlWorker.onmessage = function(event) {
+		if (event.data.type == "display_imagebitmap") {
+      if (!isCanvasInitialized) {
+        canvasResult.width = event.data.bitmap.width;
+        canvasResult.height = event.data.bitmap.height;
+        isCanvasInitialized = true;
+      }
+      // show result
+      ctxResult.drawImage(event.data.bitmap, 0, 0);
+    } else if (event.data.type == "display_face") {
+      if (!isCanvasInitialized) {
+        canvasResult.width = event.data.bitmap.width;
+        canvasResult.height = event.data.bitmap.height;
+        isCanvasInitialized = true;
+      }
+      // show result
+      ctxResult.drawImage(event.data.bitmap, 0, 0);
+
+      // draw extra information
+      if (!!hatImageBitmap) {
+        // ctxResult.drawImage(hatImageBitmap, event.data.x, event.data.y, event.data.w, event.data.h);
+        drawHat(ctxResult, event.data.x, event.data.y, event.data.w, event.data.h);
+      }
+
+    } else if (event.data.type == "display_arraybuffer") {
+      if (!isCanvasInitialized) {
+        canvasResult.width = event.data.width;
+        canvasResult.height = event.data.height;
+        isCanvasInitialized = true;
+      }
+      // show result
+      var bufferView = new Uint8ClampedArray(event.data.buffer, 0, event.data.length);
+      var imageData = new ImageData(bufferView, event.data.width, event.data.height);
+      ctxResult.putImageData(imageData, 0, 0);
+		} else if (event.data.type == "display_fpsinfo") {
+      fpsInfo.textContent = "FPS = " + event.data.fps;
+    } else if (event.data.type == "display_dropRateInfo") {
+      dropRateInfo.textContent = "DropRate = " + event.data.dropRate;
+    } else if (event.data.type == "display_qrcode") {
+      qrcodeInfo.textContent = "QR code = " + event.data.qrcode;
+    }
+	};
+}
+</script>
+</html>
